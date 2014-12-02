@@ -1,6 +1,6 @@
 #include <windows.h>
 #include <ctype.h>
-#include "evwin32.h"
+#include <tchar.h>
 #include "common.h"
 #include "resource.h"
 
@@ -11,7 +11,7 @@ VOID SetOldTime(HWND hDlg, LPCTSTR lpTime, DWORD dwStart, DWORD dwEnd)
 	SendDlgItemMessage(hDlg, IDC_TIME, EM_SETSEL, dwStart, dwEnd);
 }
 
-VOID StartTimer(HWND hDlg, LPDWORD lpID)
+VOID StartTimer(HWND hDlg, UINT_PTR *lpID)
 {
 	if(!*lpID)
 	{
@@ -20,16 +20,16 @@ VOID StartTimer(HWND hDlg, LPDWORD lpID)
 			return;
 
 		CheckDlgButton(hDlg, IDC_START, BST_CHECKED);
-		SetDlgItemText(hDlg, IDC_START, "Stop");	
+		SetDlgItemText(hDlg, IDC_START, TEXT("Stop"));
 	}
 }
 
-VOID StopTimer(HWND hDlg, LPDWORD lpID)
+VOID StopTimer(HWND hDlg, UINT_PTR *lpID)
 {
 	if(*lpID)
 	{
 		CheckDlgButton(hDlg, IDC_START, BST_UNCHECKED);
-		SetDlgItemText(hDlg, IDC_START, "Start");
+		SetDlgItemText(hDlg, IDC_START, TEXT("Start"));
 		KillTimer(hDlg, *lpID);
 		*lpID = 0;
 	}
@@ -38,11 +38,11 @@ VOID StopTimer(HWND hDlg, LPDWORD lpID)
 VOID ShowTime(HWND hDlg, LPTSTR lpTime, DWORD dwSeconds)
 {
 	if(dwSeconds < 60)
-		wsprintf(lpTime, ":%.2d", dwSeconds);
+		wsprintf(lpTime, TEXT(":%.2d"), dwSeconds);
 	else if(dwSeconds < 3600)
-		wsprintf(lpTime, "%d:%.2d", dwSeconds / 60, dwSeconds % 60);
+		wsprintf(lpTime, TEXT("%d:%.2d"), dwSeconds / 60, dwSeconds % 60);
 	else
-		wsprintf(lpTime, "%d:%.2d:%.2d", dwSeconds / 3600, (dwSeconds / 60) % 60, dwSeconds % 60);
+		wsprintf(lpTime, TEXT("%d:%.2d:%.2d"), dwSeconds / 3600, (dwSeconds / 60) % 60, dwSeconds % 60);
 
 	SetDlgItemText(hDlg, IDC_TIME, lpTime);
 }
@@ -94,7 +94,7 @@ VOID RunProg(HWND hDlg)
 		if(*lpFile == '"')
 		{
 			lpFile++;
-			lpParam = strchr(lpFile, '"');
+			lpParam = _tcschr(lpFile, '"');
 
 			if(lpParam)
 			{
@@ -120,15 +120,15 @@ VOID RunProg(HWND hDlg)
 	}
 	else
 	{
-		MessageBox(hDlg, "Time Elapsed.", "Countdown Timer", MB_OK | MB_ICONINFORMATION);
+		MessageBox(hDlg, TEXT("Time Elapsed."), TEXT("Countdown Timer"), MB_OK | MB_ICONINFORMATION);
 	}
 }
 
 DWORD dwSeconds = 0;
-TCHAR cTime[10] = "";
-DWORD dwTimerID = 0;
+TCHAR cTime[10] = TEXT("");
+UINT_PTR uTimerID = 0;
 
-BOOL CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	LPTSTR lpPtr;
 	TCHAR cNewTime[10];
@@ -151,7 +151,7 @@ BOOL CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
-			StopTimer(hDlg, &dwTimerID);
+			StopTimer(hDlg, &uTimerID);
 			RunProg(hDlg);
 		}
 		break;
@@ -183,7 +183,7 @@ BOOL CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				break;
 			case EN_SETFOCUS:
-				StopTimer(hDlg, &dwTimerID);
+				StopTimer(hDlg, &uTimerID);
 				break;
 			case EN_KILLFOCUS:
 				GetDlgItemText(hDlg, IDC_TIME, cNewTime, arraysize(cNewTime));
@@ -228,10 +228,10 @@ BOOL CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			break;
 
 		case IDC_START:
-			if(!dwTimerID)
-				StartTimer(hDlg, &dwTimerID);
+			if(!uTimerID)
+				StartTimer(hDlg, &uTimerID);
 			else
-				StopTimer(hDlg, &dwTimerID);
+				StopTimer(hDlg, &uTimerID);
 			break;
 
 		case IDC_RUNNOW:
@@ -249,5 +249,5 @@ BOOL CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
-	return DialogBox(hInstance, MAKEINTRESOURCE(IDD_MAIN), NULL, DialogProc);
+	return (int)DialogBox(hInstance, MAKEINTRESOURCE(IDD_MAIN), NULL, DialogProc);
 }

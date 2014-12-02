@@ -1,4 +1,4 @@
-CFLAGS=/ML /W3 /O2 /D NDEBUG
+CFLAGS=/MT /W3 /O2 /D NDEBUG
 
 all: wait.exe
 
