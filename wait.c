@@ -1,28 +1,10 @@
+#include "resource.h"
+
+#include "common.h"
+
 #include <windows.h>
 #include <ctype.h>
 #include <tchar.h>
-#include "common.h"
-#include "resource.h"
-
-static void _set_old_time(HWND dlg, LPCTSTR time, DWORD start, DWORD end)
-{
-	MessageBeep(MB_OK);
-	SetDlgItemText(dlg, IDC_TIME, time);
-	SendDlgItemMessage(dlg, IDC_TIME, EM_SETSEL, start, end);
-}
-
-static void _start_timer(HWND dlg, UINT_PTR *id)
-{
-	if(!*id)
-	{
-		*id = SetTimer(dlg, 1, 1000, NULL);
-		if(!*id)
-			return;
-
-		CheckDlgButton(dlg, IDC_START, BST_CHECKED);
-		SetDlgItemText(dlg, IDC_START, TEXT("Stop"));
-	}
-}
 
 static void _stop_timer(HWND dlg, UINT_PTR *id)
 {
@@ -124,21 +106,18 @@ static void _run_prog(HWND dlg)
 	}
 }
 
+#define MAX_TIME 10
+
 static DWORD _seconds = 0;
-static TCHAR _time[10] = TEXT("");
+static TCHAR _time[MAX_TIME] = TEXT("");
 static UINT_PTR _timer_id = 0;
 
 static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-	LPTSTR ptr;
-	TCHAR new_time[10];
-	DWORD start, end;
-	DWORD dig, field;
-
 	switch(msg)
 	{
 	case WM_INITDIALOG:
-		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, 9, 0);
+		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, MAX_TIME - 1, 0);
 		break;
 	case WM_CLOSE:
 		EndDialog(dlg, 0);
@@ -165,20 +144,26 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 			switch(HIWORD(wparam))
 			{
 			case EN_UPDATE:
-				GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
-				SendDlgItemMessage(dlg, IDC_TIME, EM_GETSEL, (WPARAM)&start, (LPARAM)&end);
-/*				start--;
-				end--; */
+				{
+					TCHAR new_time[MAX_TIME];
+					DWORD start, end;
 
-				if(_valid_time(new_time))
-				{
-					lstrcpy(_time, new_time);
-				}
-				else
-				{
-					MessageBeep(MB_OK);
-					_set_old_time(dlg, _time, start, end);
-					SendDlgItemMessage(dlg, IDC_TIME, EM_SETSEL, start, end);
+					GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
+					SendDlgItemMessage(dlg, IDC_TIME, EM_GETSEL, (WPARAM)&start, (LPARAM)&end);
+/*					start--;
+					end--; */
+
+					if(_valid_time(new_time))
+					{
+						lstrcpy(_time, new_time);
+					}
+					else
+					{
+						/* Set old time. */
+						MessageBeep(MB_OK);
+						SetDlgItemText(dlg, IDC_TIME, _time);
+						SendDlgItemMessage(dlg, IDC_TIME, EM_SETSEL, start, end);
+					}
 				}
 
 				break;
@@ -186,42 +171,46 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 				_stop_timer(dlg, &_timer_id);
 				break;
 			case EN_KILLFOCUS:
-				GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
-
-				ptr = new_time;
-				_seconds = 0;
-				field = 0;
-				dig = 0;
-
-				while(*ptr)
 				{
-					if(isdigit(*ptr))
+					TCHAR new_time[MAX_TIME];
+					LPTSTR ptr = new_time;
+					DWORD dig = 0, field = 0;
+
+					GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
+
+					_seconds = 0;
+
+					while(*ptr)
 					{
-						dig = dig * 10 + *ptr - '0';
-					}
-					else if(*ptr == ':')
-					{
-						if(field < 3)
+						if(isdigit(*ptr))
 						{
-							_seconds = _seconds * 60 + dig;
-							dig = 0;
-							field++;
+							dig = dig * 10 + *ptr - '0';
+						}
+						else if(*ptr == ':')
+						{
+							if(field < 3)
+							{
+								_seconds = _seconds * 60 + dig;
+								dig = 0;
+								field++;
+							}
+							else
+							{
+								break;
+							}
 						}
 						else
 						{
 							break;
 						}
+						ptr++;
 					}
-					else
-					{
-						break;
-					}
-					ptr++;
+
+					_seconds = _seconds * 60 + dig;
+
+					_show_time(dlg, _time, _seconds);
 				}
 
-				_seconds = _seconds * 60 + dig;
-
-				_show_time(dlg, _time, _seconds);
 				break;
 			}
 
@@ -229,9 +218,19 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 
 		case IDC_START:
 			if(!_timer_id)
-				_start_timer(dlg, &_timer_id);
+			{
+				/* Start timer. */
+				_timer_id = SetTimer(dlg, 1, 1000, NULL);
+				if(_timer_id)
+				{
+					CheckDlgButton(dlg, IDC_START, BST_CHECKED);
+					SetDlgItemText(dlg, IDC_START, TEXT("Stop"));
+				}
+			}
 			else
+			{
 				_stop_timer(dlg, &_timer_id);
+			}
 			break;
 
 		case IDC_RUNNOW:
