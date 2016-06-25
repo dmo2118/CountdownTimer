@@ -2,9 +2,20 @@
 
 #include "common.h"
 
-#include <windows.h>
+#include <assert.h>
 #include <ctype.h>
+#include <string.h>
+#include <process.h>
 #include <tchar.h>
+#include <windows.h>
+
+#ifdef __GNUC__
+#	define HAVE_WINDOWS_3 1
+#endif
+
+#if HAVE_WINDOWS_3
+DWORD _win_ver;
+#endif
 
 static void _stop_timer(HWND dlg, UINT_PTR *id)
 {
@@ -44,7 +55,7 @@ static BOOL _valid_time(LPTSTR time)
 		}
 		else if(*time == ':')
 		{
-			if(!dig && field || field == 2)
+			if((!dig && field) || field == 2)
 				return FALSE;
 
 			dig = 0;
@@ -76,6 +87,7 @@ static void _run_prog(HWND dlg)
 		if(*file == '"')
 		{
 			file++;
+			/* GCC translates __builtin_strchr to simply strchr. */
 			param = _tcschr(file, '"');
 
 			if(param)
@@ -118,6 +130,13 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 	{
 	case WM_INITDIALOG:
 		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, MAX_TIME - 1, 0);
+#if HAVE_WINDOWS_3
+		if(LOBYTE(_win_ver) < 4)
+		{
+			HWND start = GetDlgItem(dlg, IDC_START);
+			SetWindowLongPtr(start, GWL_STYLE, GetWindowLongPtr(start, GWL_STYLE) & ~(LONG_PTR)(BS_AUTOCHECKBOX | BS_PUSHLIKE));
+		}
+#endif
 		break;
 	case WM_CLOSE:
 		EndDialog(dlg, 0);
@@ -246,7 +265,41 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 	return FALSE;
 }
 
+#ifdef __GNUC__
+int entry_point()
+#else
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int show_cmd)
+#endif
 {
+#ifdef __GNUC__
+	/* The linker-defined symbol __ImageBase is the same as hInstance under Windows NT and Windows 95, but not Win32s. */
+	HINSTANCE instance = GetModuleHandle(NULL);
+#endif
+
+#if HAVE_WINDOWS_3
+	_win_ver = GetVersion();
+
+	{
+		HRSRC res_info = FindResource(instance, MAKEINTRESOURCE(IDD_MAIN), RT_DIALOG);
+		// if(!res_info)
+		//	return -1;
+
+		HGLOBAL dlg_global = LoadResource(instance, res_info);
+		DLGTEMPLATE *dlg_rsrc = LockResource(dlg_global);
+
+		assert(dlg_rsrc->style & 0xffff0000 != 0xffff0000);
+
+		if(LOBYTE(_win_ver) < 4)
+		{
+			// Windows 3.x requires maximize with minimize. Also, Win32s doesn't draw the minimize button correctly; NT 3.51
+			// does, FWIW.
+			dlg_rsrc->style &= ~(DWORD)WS_MINIMIZEBOX;
+		}
+
+		int result = (int)DialogBoxIndirect(instance, dlg_rsrc, NULL, _dialog_proc);
+		return result;
+	}
+#else
 	return (int)DialogBox(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _dialog_proc);
+#endif
 }

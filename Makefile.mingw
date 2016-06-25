@@ -1,0 +1,19 @@
+# This requires GNU Make.
+
+CFLAGS=-Wall -O2 -DNDEBUG
+# We could take this back to Windows NT 3.1; this requires --subsystem windows:3.10. But that gives disabled edit controls a
+# Windows 3 appearance on Windows 4+. Setting the subsystem version in the PE header at run time doesn't work.
+# Thusly: minimum requirement for this build is Win32s or Windows NT 3.51.
+LDFLAGS=-L$(shell cygpath -d /mingw32/i686-w64-mingw32/lib) -pie --subsystem windows:4 -e_entry_point -s
+LDLIBS=-lkernel32 -luser32 -lshell32 -lcrtdll
+
+all: wait.exe
+
+wait.exe: wait-rc.o wait.o
+	$(LD) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+wait-rc.o: wait.rc
+	windres $^ $@
+
+clean:
+	-rm wait.exe wait.o wait-rc.o
