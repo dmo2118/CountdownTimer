@@ -11,6 +11,7 @@
 
 #ifdef __GNUC__
 #	define HAVE_WINDOWS_3 1
+#	define OMIT_CRT 1
 #endif
 
 #if HAVE_WINDOWS_3
@@ -114,21 +115,31 @@ static void _run_prog(HWND dlg)
 	}
 	else
 	{
-		MessageBox(dlg, TEXT("Time Elapsed."), TEXT("Countdown Timer"), MB_OK | MB_ICONINFORMATION);
+		MessageBox(dlg, TEXT("Time elapsed."), TEXT("Countdown Timer"), MB_OK | MB_ICONINFORMATION);
 	}
 }
 
 #define MAX_TIME 10
 
-static DWORD _seconds = 0;
-static TCHAR _time[MAX_TIME] = TEXT("");
-static UINT_PTR _timer_id = 0;
+struct _dialog
+{
+	DWORD seconds;
+	TCHAR time[MAX_TIME];
+	UINT_PTR timer_id;
+};
+
+static const struct _dialog _dialog_init = {0, TEXT(""), 0};
 
 static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
+	struct _dialog *self = (struct _dialog *)GetWindowLongPtr(dlg, DWLP_USER);
+
 	switch(msg)
 	{
 	case WM_INITDIALOG:
+		self = (struct _dialog *)lparam;
+		SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR)self);
+
 		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, MAX_TIME - 1, 0);
 #if HAVE_WINDOWS_3
 		if(LOBYTE(_win_ver) < 4)
@@ -142,14 +153,14 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 		EndDialog(dlg, 0);
 		break;
 	case WM_TIMER:
-		if(_seconds)
+		if(self->seconds)
 		{
-			_seconds--;
-			_show_time(dlg, _time, _seconds);
+			self->seconds--;
+			_show_time(dlg, self->time, self->seconds);
 		}
 		else
 		{
-			_stop_timer(dlg, &_timer_id);
+			_stop_timer(dlg, &self->timer_id);
 			_run_prog(dlg);
 		}
 		break;
@@ -174,20 +185,20 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 
 					if(_valid_time(new_time))
 					{
-						lstrcpy(_time, new_time);
+						lstrcpy(self->time, new_time);
 					}
 					else
 					{
 						/* Set old time. */
 						MessageBeep(MB_OK);
-						SetDlgItemText(dlg, IDC_TIME, _time);
+						SetDlgItemText(dlg, IDC_TIME, self->time);
 						SendDlgItemMessage(dlg, IDC_TIME, EM_SETSEL, start, end);
 					}
 				}
 
 				break;
 			case EN_SETFOCUS:
-				_stop_timer(dlg, &_timer_id);
+				_stop_timer(dlg, &self->timer_id);
 				break;
 			case EN_KILLFOCUS:
 				{
@@ -197,7 +208,7 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 
 					GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
 
-					_seconds = 0;
+					self->seconds = 0;
 
 					while(*ptr)
 					{
@@ -209,7 +220,7 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 						{
 							if(field < 3)
 							{
-								_seconds = _seconds * 60 + dig;
+								self->seconds = self->seconds * 60 + dig;
 								dig = 0;
 								field++;
 							}
@@ -225,9 +236,9 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 						ptr++;
 					}
 
-					_seconds = _seconds * 60 + dig;
+					self->seconds = self->seconds * 60 + dig;
 
-					_show_time(dlg, _time, _seconds);
+					_show_time(dlg, self->time, self->seconds);
 				}
 
 				break;
@@ -236,11 +247,11 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 			break;
 
 		case IDC_START:
-			if(!_timer_id)
+			if(!self->timer_id)
 			{
 				/* Start timer. */
-				_timer_id = SetTimer(dlg, 1, 1000, NULL);
-				if(_timer_id)
+				self->timer_id = SetTimer(dlg, 1, 1000, NULL);
+				if(self->timer_id)
 				{
 					CheckDlgButton(dlg, IDC_START, BST_CHECKED);
 					SetDlgItemText(dlg, IDC_START, TEXT("Stop"));
@@ -248,7 +259,7 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 			}
 			else
 			{
-				_stop_timer(dlg, &_timer_id);
+				_stop_timer(dlg, &self->timer_id);
 			}
 			break;
 
@@ -265,16 +276,19 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 	return FALSE;
 }
 
-#ifdef __GNUC__
+#if OMIT_CRT
 int entry_point()
 #else
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int show_cmd)
 #endif
 {
-#ifdef __GNUC__
+#if OMIT_CRT
 	/* The linker-defined symbol __ImageBase is the same as hInstance under Windows NT and Windows 95, but not Win32s. */
 	HINSTANCE instance = GetModuleHandle(NULL);
 #endif
+
+	int exit_code;
+	struct _dialog self = _dialog_init;
 
 #if HAVE_WINDOWS_3
 	_win_ver = GetVersion();
@@ -296,10 +310,14 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 			dlg_rsrc->style &= ~(DWORD)WS_MINIMIZEBOX;
 		}
 
-		int result = (int)DialogBoxIndirect(instance, dlg_rsrc, NULL, _dialog_proc);
-		return result;
+		exit_code = (int)DialogBoxIndirectParam(instance, dlg_rsrc, NULL, _dialog_proc, (LPARAM)&self);
 	}
 #else
-	return (int)DialogBox(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _dialog_proc);
+	exit_code = (int)DialogBoxParam(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _dialog_proc, (LPARAM)&self);
 #endif
+
+#ifdef OMIT_CRT
+	ExitProcess(exit_code);
+#endif
+	return exit_code;
 }
