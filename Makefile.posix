@@ -1,0 +1,15 @@
+CFLAGS=-O -DNDEBUG
+LDLIBS=-lkernel32 -luser32 -lshell32
+
+OBJS=wait-rc.o wait.o
+
+all: wait
+
+wait: $(OBJS)
+	$(CC) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
+
+wait-rc.o: wait.rc
+	windres wait.rc $@
+
+clean:
+	-rm wait $(OBJS)

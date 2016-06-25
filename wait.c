@@ -1,22 +1,41 @@
+/*
+TODO:
+- OpenWatcom
+- Win16
+- Test with Winelib, not just Cygwin.
+- MinGW-w64 64-bit
+- MSVC 64-bit
+- Async system()
+- Restrict countdown time edit control numerically.
+*/
+
 #include "resource.h"
 
 #include "common.h"
 
 #include <assert.h>
 #include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
 #include <process.h>
-#include <tchar.h>
 #include <windows.h>
 
-#ifdef __GNUC__
+#if defined __MINGW32__
 #	define HAVE_WINDOWS_3 1
 #	define OMIT_CRT 1
+#endif
+
+#ifdef _WIN32
+#	include <tchar.h>
+#else
+#	define _tcschr strchr
 #endif
 
 #if HAVE_WINDOWS_3
 DWORD _win_ver;
 #endif
+
+static const TCHAR _title[] = TEXT("Countdown Timer");
 
 static void _stop_timer(HWND dlg, UINT_PTR *id)
 {
@@ -74,14 +93,17 @@ static BOOL _valid_time(LPTSTR time)
 
 static void _run_prog(HWND dlg)
 {
-	TCHAR cmd_line[1024];
-	LPTSTR param, file;
-
 	if(IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED)
 	{
-		GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
-		file = cmd_line;
+		TCHAR cmd_line[1024];
+		LPTSTR param, file = cmd_line;
 
+		GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
+
+#ifndef _WIN32
+		if(system(cmd_line) == -1)
+			MessageBox(dlg, "Error issuing a command.", _title, MB_ICONERROR | MB_OK);
+#else
 		while(isspace(*file))
 			file++;
 
@@ -112,10 +134,11 @@ static void _run_prog(HWND dlg)
 		}
 
 		ShellExecute(NULL, NULL, file, param, NULL, SW_SHOWNORMAL);
+#endif
 	}
 	else
 	{
-		MessageBox(dlg, TEXT("Time elapsed."), TEXT("Countdown Timer"), MB_OK | MB_ICONINFORMATION);
+		MessageBox(dlg, TEXT("Time elapsed."), _title, MB_OK | MB_ICONINFORMATION);
 	}
 }
 
@@ -278,11 +301,13 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 
 #if OMIT_CRT
 int entry_point()
+#elif !defined _WIN32
+int main()
 #else
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int show_cmd)
 #endif
 {
-#if OMIT_CRT
+#if OMIT_CRT || !defined _WIN32
 	/* The linker-defined symbol __ImageBase is the same as hInstance under Windows NT and Windows 95, but not Win32s. */
 	HINSTANCE instance = GetModuleHandle(NULL);
 #endif
@@ -316,7 +341,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	exit_code = (int)DialogBoxParam(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _dialog_proc, (LPARAM)&self);
 #endif
 
-#ifdef OMIT_CRT
+#if OMIT_CRT
 	ExitProcess(exit_code);
 #endif
 	return exit_code;

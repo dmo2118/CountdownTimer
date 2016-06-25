@@ -1,4 +1,5 @@
-*.c         text
-*.h         text
-*.rc        text
-Makefile*   text
+*.c             text
+*.h             text
+*.rc            text
+Makefile*       text
+Makefile.posix  text eol=lf
