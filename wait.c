@@ -4,208 +4,208 @@
 #include "common.h"
 #include "resource.h"
 
-VOID SetOldTime(HWND hDlg, LPCTSTR lpTime, DWORD dwStart, DWORD dwEnd)
+static void _set_old_time(HWND dlg, LPCTSTR time, DWORD start, DWORD end)
 {
 	MessageBeep(MB_OK);
-	SetDlgItemText(hDlg, IDC_TIME, lpTime);
-	SendDlgItemMessage(hDlg, IDC_TIME, EM_SETSEL, dwStart, dwEnd);
+	SetDlgItemText(dlg, IDC_TIME, time);
+	SendDlgItemMessage(dlg, IDC_TIME, EM_SETSEL, start, end);
 }
 
-VOID StartTimer(HWND hDlg, UINT_PTR *lpID)
+static void _start_timer(HWND dlg, UINT_PTR *id)
 {
-	if(!*lpID)
+	if(!*id)
 	{
-		*lpID = SetTimer(hDlg, 1, 1000, NULL);
-		if(!*lpID)
+		*id = SetTimer(dlg, 1, 1000, NULL);
+		if(!*id)
 			return;
 
-		CheckDlgButton(hDlg, IDC_START, BST_CHECKED);
-		SetDlgItemText(hDlg, IDC_START, TEXT("Stop"));
+		CheckDlgButton(dlg, IDC_START, BST_CHECKED);
+		SetDlgItemText(dlg, IDC_START, TEXT("Stop"));
 	}
 }
 
-VOID StopTimer(HWND hDlg, UINT_PTR *lpID)
+static void _stop_timer(HWND dlg, UINT_PTR *id)
 {
-	if(*lpID)
+	if(*id)
 	{
-		CheckDlgButton(hDlg, IDC_START, BST_UNCHECKED);
-		SetDlgItemText(hDlg, IDC_START, TEXT("Start"));
-		KillTimer(hDlg, *lpID);
-		*lpID = 0;
+		CheckDlgButton(dlg, IDC_START, BST_UNCHECKED);
+		SetDlgItemText(dlg, IDC_START, TEXT("Start"));
+		KillTimer(dlg, *id);
+		*id = 0;
 	}
 }
 
-VOID ShowTime(HWND hDlg, LPTSTR lpTime, DWORD dwSeconds)
+static void _show_time(HWND dlg, LPTSTR time, DWORD seconds)
 {
-	if(dwSeconds < 60)
-		wsprintf(lpTime, TEXT(":%.2d"), dwSeconds);
-	else if(dwSeconds < 3600)
-		wsprintf(lpTime, TEXT("%d:%.2d"), dwSeconds / 60, dwSeconds % 60);
+	if(seconds < 60)
+		wsprintf(time, TEXT(":%.2d"), seconds);
+	else if(seconds < 3600)
+		wsprintf(time, TEXT("%d:%.2d"), seconds / 60, seconds % 60);
 	else
-		wsprintf(lpTime, TEXT("%d:%.2d:%.2d"), dwSeconds / 3600, (dwSeconds / 60) % 60, dwSeconds % 60);
+		wsprintf(time, TEXT("%d:%.2d:%.2d"), seconds / 3600, (seconds / 60) % 60, seconds % 60);
 
-	SetDlgItemText(hDlg, IDC_TIME, lpTime);
+	SetDlgItemText(dlg, IDC_TIME, time);
 }
 
-BOOL ValidTime(LPTSTR lpTime)
+static BOOL _valid_time(LPTSTR time)
 {
-	DWORD dwDig = 0, dwField = 0;
+	DWORD dig = 0, field = 0;
 
-	while(*lpTime)
+	while(*time)
 	{
-		if(isdigit(*lpTime))
+		if(isdigit(*time))
 		{
-			if(dwField && dwDig >= 2)
+			if(field && dig >= 2)
 				return FALSE;
 
-			dwDig++;
+			dig++;
 		}
-		else if(*lpTime == ':')
+		else if(*time == ':')
 		{
-			if(!dwDig && dwField || dwField == 2)
+			if(!dig && field || field == 2)
 				return FALSE;
 
-			dwDig = 0;
-			dwField++;
+			dig = 0;
+			field++;
 		}
 		else
 		{
 			return FALSE;
 		}
-		lpTime++;
+		time++;
 	}
 
 	return TRUE;
 }
 
-VOID RunProg(HWND hDlg)
+static void _run_prog(HWND dlg)
 {
-	TCHAR cCmdLine[1024];
-	LPTSTR lpParam, lpFile;
+	TCHAR cmd_line[1024];
+	LPTSTR param, file;
 
-	if(IsDlgButtonChecked(hDlg, IDC_BEEP) != BST_CHECKED)
+	if(IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED)
 	{
-		GetDlgItemText(hDlg, IDC_COMMAND, cCmdLine, arraysize(cCmdLine));
-		lpFile = cCmdLine;
+		GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
+		file = cmd_line;
 
-		while(isspace(*lpFile))
-			lpFile++;
+		while(isspace(*file))
+			file++;
 
-		if(*lpFile == '"')
+		if(*file == '"')
 		{
-			lpFile++;
-			lpParam = _tcschr(lpFile, '"');
+			file++;
+			param = _tcschr(file, '"');
 
-			if(lpParam)
+			if(param)
 			{
-				*lpParam = 0;
-				lpParam++;
+				*param = 0;
+				param++;
 			}
 		}
 		else
 		{
-			lpParam = lpFile;
+			param = file;
 
-			while(*lpParam && !isspace(*lpParam))
-				lpParam++;
+			while(*param && !isspace(*param))
+				param++;
 
-			if(*lpParam)
+			if(*param)
 			{
-				*lpParam = 0;
-				lpParam++;
+				*param = 0;
+				param++;
 			}
 		}
 
-		ShellExecute(NULL, NULL, lpFile, lpParam, NULL, SW_SHOWNORMAL);
+		ShellExecute(NULL, NULL, file, param, NULL, SW_SHOWNORMAL);
 	}
 	else
 	{
-		MessageBox(hDlg, TEXT("Time Elapsed."), TEXT("Countdown Timer"), MB_OK | MB_ICONINFORMATION);
+		MessageBox(dlg, TEXT("Time Elapsed."), TEXT("Countdown Timer"), MB_OK | MB_ICONINFORMATION);
 	}
 }
 
-DWORD dwSeconds = 0;
-TCHAR cTime[10] = TEXT("");
-UINT_PTR uTimerID = 0;
+static DWORD _seconds = 0;
+static TCHAR _time[10] = TEXT("");
+static UINT_PTR _timer_id = 0;
 
-INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-	LPTSTR lpPtr;
-	TCHAR cNewTime[10];
-	DWORD dwStart, dwEnd;
-	DWORD dwDig, dwField;
+	LPTSTR ptr;
+	TCHAR new_time[10];
+	DWORD start, end;
+	DWORD dig, field;
 
-	switch(uMsg)
+	switch(msg)
 	{
 	case WM_INITDIALOG:
-		SendDlgItemMessage(hDlg, IDC_TIME, EM_LIMITTEXT, 9, 0);
+		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, 9, 0);
 		break;
 	case WM_CLOSE:
-		EndDialog(hDlg, 0);
+		EndDialog(dlg, 0);
 		break;
 	case WM_TIMER:
-		if(dwSeconds)
+		if(_seconds)
 		{
-			dwSeconds--;
-			ShowTime(hDlg, cTime, dwSeconds);
+			_seconds--;
+			_show_time(dlg, _time, _seconds);
 		}
 		else
 		{
-			StopTimer(hDlg, &uTimerID);
-			RunProg(hDlg);
+			_stop_timer(dlg, &_timer_id);
+			_run_prog(dlg);
 		}
 		break;
 	case WM_COMMAND:
-		switch(LOWORD(wParam))
+		switch(LOWORD(wparam))
 		{
 		case IDC_BEEP:
-			EnableWindow(GetDlgItem(hDlg, IDC_COMMAND), IsDlgButtonChecked(hDlg, IDC_BEEP) != BST_CHECKED);
+			EnableWindow(GetDlgItem(dlg, IDC_COMMAND), IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED);
 			break;
 		case IDC_TIME:
-			switch(HIWORD(wParam))
+			switch(HIWORD(wparam))
 			{
 			case EN_UPDATE:
-				GetDlgItemText(hDlg, IDC_TIME, cNewTime, arraysize(cNewTime));
-				SendDlgItemMessage(hDlg, IDC_TIME, EM_GETSEL, (WPARAM)&dwStart, (LPARAM)&dwEnd);
-/*				dwStart--;
-				dwEnd--; */
+				GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
+				SendDlgItemMessage(dlg, IDC_TIME, EM_GETSEL, (WPARAM)&start, (LPARAM)&end);
+/*				start--;
+				end--; */
 
-				if(ValidTime(cNewTime))
+				if(_valid_time(new_time))
 				{
-					lstrcpy(cTime, cNewTime);
+					lstrcpy(_time, new_time);
 				}
 				else
 				{
 					MessageBeep(MB_OK);
-					SetOldTime(hDlg, cTime, dwStart, dwEnd);
-					SendDlgItemMessage(hDlg, IDC_TIME, EM_SETSEL, dwStart, dwEnd);
+					_set_old_time(dlg, _time, start, end);
+					SendDlgItemMessage(dlg, IDC_TIME, EM_SETSEL, start, end);
 				}
 
 				break;
 			case EN_SETFOCUS:
-				StopTimer(hDlg, &uTimerID);
+				_stop_timer(dlg, &_timer_id);
 				break;
 			case EN_KILLFOCUS:
-				GetDlgItemText(hDlg, IDC_TIME, cNewTime, arraysize(cNewTime));
+				GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
 
-				lpPtr = cNewTime;
-				dwSeconds = 0;
-				dwField = 0;
-				dwDig = 0;
+				ptr = new_time;
+				_seconds = 0;
+				field = 0;
+				dig = 0;
 
-				while(*lpPtr)
+				while(*ptr)
 				{
-					if(isdigit(*lpPtr))
+					if(isdigit(*ptr))
 					{
-						dwDig = dwDig * 10 + *lpPtr - '0';
+						dig = dig * 10 + *ptr - '0';
 					}
-					else if(*lpPtr == ':')
+					else if(*ptr == ':')
 					{
-						if(dwField < 3)
+						if(field < 3)
 						{
-							dwSeconds = dwSeconds * 60 + dwDig;
-							dwDig = 0;
-							dwField++;
+							_seconds = _seconds * 60 + dig;
+							dig = 0;
+							field++;
 						}
 						else
 						{
@@ -216,30 +216,30 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					{
 						break;
 					}
-					lpPtr++;
+					ptr++;
 				}
 
-				dwSeconds = dwSeconds * 60 + dwDig;
+				_seconds = _seconds * 60 + dig;
 
-				ShowTime(hDlg, cTime, dwSeconds);
+				_show_time(dlg, _time, _seconds);
 				break;
 			}
 
 			break;
 
 		case IDC_START:
-			if(!uTimerID)
-				StartTimer(hDlg, &uTimerID);
+			if(!_timer_id)
+				_start_timer(dlg, &_timer_id);
 			else
-				StopTimer(hDlg, &uTimerID);
+				_stop_timer(dlg, &_timer_id);
 			break;
 
 		case IDC_RUNNOW:
-			RunProg(hDlg);
+			_run_prog(dlg);
 			break;
 
 		case IDC_CLOSE:
-			EndDialog(hDlg, 0);
+			EndDialog(dlg, 0);
 			break;
 		}
 		break;
@@ -247,7 +247,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int show_cmd)
 {
-	return (int)DialogBox(hInstance, MAKEINTRESOURCE(IDD_MAIN), NULL, DialogProc);
+	return (int)DialogBox(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _dialog_proc);
 }
