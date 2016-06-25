@@ -1,4 +1,4 @@
 *.c         text
 *.h         text
 *.rc        text
-Makefile    text
+Makefile*   text
