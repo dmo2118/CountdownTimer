@@ -2,11 +2,14 @@
 TODO:
 - OpenWatcom
 - Win16
+- HXDOS
 - Test with Winelib, not just Cygwin.
 - MinGW-w64 64-bit
 - MSVC 64-bit
 - Async system()
 - Restrict countdown time edit control numerically.
+- About button with copyright.
+- ShellExecuteEx
 */
 
 #include "resource.h"
@@ -91,12 +94,18 @@ static BOOL _valid_time(LPTSTR time)
 	return TRUE;
 }
 
+static void _just_beep(HWND dlg)
+{
+	MessageBox(dlg, TEXT("Time elapsed."), _title, MB_OK | MB_ICONINFORMATION);
+}
+
 static void _run_prog(HWND dlg)
 {
 	if(IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED)
 	{
 		TCHAR cmd_line[1024];
 		LPTSTR param, file = cmd_line;
+		UINT_PTR result;
 
 		GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
 
@@ -133,12 +142,58 @@ static void _run_prog(HWND dlg)
 			}
 		}
 
-		ShellExecute(NULL, NULL, file, param, NULL, SW_SHOWNORMAL);
+		if(!*file)
+		{
+			_just_beep(dlg);
+			return;
+		}
+
+		result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
+		if(result <= 32)
+		{
+			static const DWORD errors26[] =
+			{
+				ERROR_SHARING_VIOLATION,
+				ERROR_NO_ASSOCIATION,
+				ERROR_DDE_FAIL,
+				ERROR_DDE_FAIL,
+				ERROR_DDE_FAIL,
+				ERROR_NO_ASSOCIATION,
+				ERROR_MOD_NOT_FOUND
+			};
+
+			TCHAR *message;
+
+			if(result >= 26)
+				result = errors26[result - 26];
+
+			if(FormatMessage(
+				FORMAT_MESSAGE_ALLOCATE_BUFFER |
+					FORMAT_MESSAGE_IGNORE_INSERTS |
+					FORMAT_MESSAGE_FROM_SYSTEM |
+					FORMAT_MESSAGE_MAX_WIDTH_MASK,
+				NULL,
+				result,
+				0,
+				(LPTSTR)&message,
+				0,
+				NULL))
+			{
+				MessageBox(dlg, message, _title, MB_ICONERROR | MB_OK);
+				LocalFree(message);
+			}
+			else
+			{
+				TCHAR text[12];
+				wsprintfA(text, "%d", result);
+				MessageBox(dlg, text, _title, MB_ICONERROR | MB_OK);
+			}
+		}
 #endif
 	}
 	else
 	{
-		MessageBox(dlg, TEXT("Time elapsed."), _title, MB_OK | MB_ICONINFORMATION);
+		_just_beep(dlg);
 	}
 }
 
