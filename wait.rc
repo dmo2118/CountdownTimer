@@ -1,14 +1,19 @@
 #include "resource.h"
 
-#include "winresrc.h"
+#if defined _WIN32 || !defined _WINDOWS
+#	include "winresrc.h"
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#else
+#	include "windows.h"
+#	define DS_3DLOOK 0
+#	define DS_SHELLFONT 0
+#endif
 
 #define IDC_STATIC -1
 
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-
 IDD_MAIN DIALOG DISCARDABLE  200, 160, 192, 61
 // Win32s: WS_MINIMIZEBOX allows maximizing.
-STYLE DS_3DLOOK | DS_MODALFRAME | DS_SHELLFONT | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_3DLOOK | DS_MODALFRAME | DS_SHELLFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Countdown Timer"
 /*
 MS Shell Dlg:
@@ -25,7 +30,7 @@ BEGIN
                     WS_TABSTOP,100,4,88,8
     LTEXT           "Will run in... (h:mm:ss)",IDC_STATIC,4,32,184,8
     EDITTEXT        IDC_TIME,4,44,64,12,ES_AUTOHSCROLL
-    CONTROL         "Start",IDC_START,"Button",BS_AUTOCHECKBOX | BS_PUSHLIKE | WS_TABSTOP,72,44,36,12
+    CONTROL         "Start",IDC_START,"Button",WS_TABSTOP,72,44,36,12
     PUSHBUTTON      "Run Now",IDC_RUNNOW,112,44,36,12
     PUSHBUTTON      "Close",IDC_CLOSE,152,44,36,12
 END

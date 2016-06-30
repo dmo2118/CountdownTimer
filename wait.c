@@ -2,7 +2,6 @@
 TODO:
 - OpenWatcom
 - Win16
-- HXDOS
 - Test with Winelib, not just Cygwin.
 - MinGW-w64 64-bit
 - MSVC 64-bit
@@ -10,7 +9,19 @@ TODO:
 - Restrict countdown time edit control numerically.
 - About button with copyright.
 - ShellExecuteEx
+- HXDOS (again)
 */
+
+/* HX-DOS doesn't support DialogBoxParam. */
+
+/*
+There's basically three compilation modes here:
+- Win32 (or 64)                 | _WIN32 (_WINDOWS may be present)
+- Win16                         | _WINDOWS
+- Non-Windows (Winelib, Cygwin) | None of the above
+*/
+
+#define STRICT 1
 
 #include "resource.h"
 
@@ -23,19 +34,56 @@ TODO:
 #include <process.h>
 #include <windows.h>
 
+#if defined _WIN32
+#	include <tchar.h>
+#else
+#	define _tWinMain WinMain
+#	define _tcschr strchr
+
+#	ifdef _WINDOWS
+
+#		include <shellapi.h>
+
+typedef char TCHAR;
+typedef char FAR *LPTSTR;
+
+typedef int INT_PTR;
+typedef UINT UINT_PTR;
+typedef long LONG_PTR;
+
+#		define TEXT(s) s
+
+static const UINT BST_UNCHECKED = 0;
+static const UINT BST_CHECKED   = 1;
+
+static const UINT MB_ICONERROR  = MB_ICONSTOP;
+
+#define GetWindowLongPtr GetWindowLong
+#define SetWindowLongPtr SetWindowLong
+
+static const int DWLP_USER = DWL_USER;
+
+#	endif
+#endif
+
+#if defined __WATCOMC__ && !defined _WIN32 && defined _WINDOWS
+#	define GET_WM_COMMAND_ID(wparam, lparam)    wparam
+#	define GET_WM_COMMAND_CMD(wparam, lparam)   HIWORD(lparam)
+#else
+#	include <windowsx.h>
+#endif
+
 #if defined __MINGW32__
-#	define HAVE_WINDOWS_3 1
 #	define OMIT_CRT 1
 #endif
 
-#ifdef _WIN32
-#	include <tchar.h>
+#if defined _WIN32
+BYTE _win_ver;
+#	define HAS_WINVER_4() (_win_ver >= 4)
+#elif defined _WINDOWS
+#	define HAS_WINVER_4() 0
 #else
-#	define _tcschr strchr
-#endif
-
-#if HAVE_WINDOWS_3
-DWORD _win_ver;
+#	define HAS_WINVER_4() 1
 #endif
 
 static const TCHAR _title[] = TEXT("Countdown Timer");
@@ -96,6 +144,10 @@ static BOOL _valid_time(LPTSTR time)
 
 static void _just_beep(HWND dlg)
 {
+#if defined _WINDOWS && !defined _WIN32
+	/* Windows 3.1 doesn't make sound with message boxes. */
+	MessageBeep(MB_OK);
+#endif
 	MessageBox(dlg, TEXT("Time elapsed."), _title, MB_OK | MB_ICONINFORMATION);
 }
 
@@ -104,15 +156,13 @@ static void _run_prog(HWND dlg)
 	if(IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED)
 	{
 		TCHAR cmd_line[1024];
-		LPTSTR param, file = cmd_line;
+		TCHAR *param;
+		TCHAR *file = cmd_line;
 		UINT_PTR result;
 
 		GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
 
-#ifndef _WIN32
-		if(system(cmd_line) == -1)
-			MessageBox(dlg, "Error issuing a command.", _title, MB_ICONERROR | MB_OK);
-#else
+#if defined _WIN32 || defined _WINDOWS
 		while(isspace(*file))
 			file++;
 
@@ -151,6 +201,53 @@ static void _run_prog(HWND dlg)
 		result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
 		if(result <= 32)
 		{
+#if defined _WINDOWS && !defined _WIN32
+			static const char *errors[] =
+			{
+				"System was out of memory, executable file was corrupt, or relocations were invalid. ",
+				NULL,
+				"File was not found. ",
+				"Path was not found. ",
+				NULL,
+				"Attempt was made to dynamically link to a task, or there was a sharing or network-protection error. ",
+				"Library required separate data segments for each task. ",
+				NULL,
+				"There was insufficient memory to start the application. ",
+				NULL,
+				"Windows version was incorrect. ",
+				"Executable file was invalid. Either it was not a Windows application or there was an error in the .EXE image. ",
+				"Application was designed for a different operating system. ",
+				"Application was designed for MS-DOS 4.0. ",
+				"Type of executable file was unknown. ",
+				"Attempt was made to load a real-mode application (developed for an earlier version of Windows). ",
+				"Attempt was made to load a second instance of an executable file containing multiple data segments that were not marked read-only. ",
+				NULL,
+				NULL,
+				"Attempt was made to load a compressed executable file. The file must be decompressed before it can be loaded. ",
+				"Dynamic-link library (DLL) file was invalid. One of the DLLs required to run this application was corrupt. ",
+				"Application requires Microsoft Windows 32-bit extensions. ",
+				NULL,
+				NULL,
+				NULL,
+				NULL,
+				NULL,
+				NULL,
+				NULL,
+				NULL,
+				NULL,
+				NULL,
+				NULL,
+			};
+
+			char code_str[6];
+			const char *error = errors[result];
+			if(!error)
+			{
+				wsprintf(code_str, "%u", result);
+				error = code_str;
+			}
+			MessageBox(dlg, error, _title, MB_ICONERROR | MB_OK);
+#else
 			static const DWORD errors26[] =
 			{
 				ERROR_SHARING_VIOLATION,
@@ -188,7 +285,11 @@ static void _run_prog(HWND dlg)
 				wsprintfA(text, "%d", result);
 				MessageBox(dlg, text, _title, MB_ICONERROR | MB_OK);
 			}
+#endif
 		}
+#else
+		if(system(cmd_line) == -1)
+			MessageBox(dlg, "Error issuing a command.", _title, MB_ICONERROR | MB_OK);
 #endif
 	}
 	else
@@ -219,13 +320,15 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 		SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR)self);
 
 		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, MAX_TIME - 1, 0);
-#if HAVE_WINDOWS_3
-		if(LOBYTE(_win_ver) < 4)
+
+#if defined _WIN32 || !defined _WINDOWS
+		if(HAS_WINVER_4())
 		{
 			HWND start = GetDlgItem(dlg, IDC_START);
-			SetWindowLongPtr(start, GWL_STYLE, GetWindowLongPtr(start, GWL_STYLE) & ~(LONG_PTR)(BS_AUTOCHECKBOX | BS_PUSHLIKE));
+			SetWindowLongPtr(start, GWL_STYLE, GetWindowLongPtr(start, GWL_STYLE) | (BS_AUTOCHECKBOX | BS_PUSHLIKE));
 		}
 #endif
+
 		break;
 	case WM_CLOSE:
 		EndDialog(dlg, 0);
@@ -243,13 +346,13 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 		}
 		break;
 	case WM_COMMAND:
-		switch(LOWORD(wparam))
+		switch(GET_WM_COMMAND_ID(wparam, lparam))
 		{
 		case IDC_BEEP:
 			EnableWindow(GetDlgItem(dlg, IDC_COMMAND), IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED);
 			break;
 		case IDC_TIME:
-			switch(HIWORD(wparam))
+			switch(GET_WM_COMMAND_CMD(wparam, lparam))
 			{
 			case EN_UPDATE:
 				{
@@ -356,13 +459,14 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 
 #if OMIT_CRT
 int entry_point()
-#elif !defined _WIN32
+#elif !defined _WIN32 && !defined _WINDOWS
 int main()
 #else
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int show_cmd)
+/* WINAPI is FAR PASCAL, which is incorrect on 16-bit. */
+int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_line, int show_cmd)
 #endif
 {
-#if OMIT_CRT || !defined _WIN32
+#if OMIT_CRT || !defined _WIN32 && !defined _WINDOWS
 	/* The linker-defined symbol __ImageBase is the same as hInstance under Windows NT and Windows 95, but not Win32s. */
 	HINSTANCE instance = GetModuleHandle(NULL);
 #endif
@@ -370,9 +474,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 	int exit_code;
 	struct _dialog self = _dialog_init;
 
-#if HAVE_WINDOWS_3
-	_win_ver = GetVersion();
+#ifdef _WIN32
+	_win_ver = LOBYTE(GetVersion());
+#endif
 
+#if defined _WIN32 || !defined _WINDOWS
 	{
 		HRSRC res_info = FindResource(instance, MAKEINTRESOURCE(IDD_MAIN), RT_DIALOG);
 		// if(!res_info)
@@ -381,13 +487,15 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 		HGLOBAL dlg_global = LoadResource(instance, res_info);
 		DLGTEMPLATE *dlg_rsrc = LockResource(dlg_global);
 
-		assert(dlg_rsrc->style & 0xffff0000 != 0xffff0000);
+		assert((dlg_rsrc->style & 0xffff0000) != 0xffff0000);
 
-		if(LOBYTE(_win_ver) < 4)
+		if(HAS_WINVER_4())
 		{
-			// Windows 3.x requires maximize with minimize. Also, Win32s doesn't draw the minimize button correctly; NT 3.51
-			// does, FWIW.
-			dlg_rsrc->style &= ~(DWORD)WS_MINIMIZEBOX;
+			/*
+			Windows 3.x requires maximize with minimize. Also, 3.1 doesn't draw the minimize button correctly; NT 3.51 does,
+			FWIW.
+			*/
+			dlg_rsrc->style |= WS_MINIMIZEBOX;
 		}
 
 		exit_code = (int)DialogBoxIndirectParam(instance, dlg_rsrc, NULL, _dialog_proc, (LPARAM)&self);
