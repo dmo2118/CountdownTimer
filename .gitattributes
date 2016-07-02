@@ -1,5 +1,6 @@
 *.c             text
 *.h             text
 *.rc            text
+configure       text eol=lf
 Makefile*       text
-Makefile.posix  text eol=lf
+Makefile.in     text eol=lf

@@ -73,10 +73,6 @@ static const int DWLP_USER = DWL_USER;
 #	include <windowsx.h>
 #endif
 
-#if defined __MINGW32__
-#	define OMIT_CRT 1
-#endif
-
 #if defined _WIN32
 BYTE _win_ver;
 #	define HAS_WINVER_4() (_win_ver >= 4)

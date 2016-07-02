@@ -1,0 +1,422 @@
+#!/bin/sh
+
+# MinGW        | i686-  pc- mingw32 | mingw32
+# MinGC-w64 32 | i686-  w64-mingw32 |
+# MinGW-w64 64 | x86_64-w64-mingw32 |
+
+# https://sourceforge.net/p/mingw-w64/wiki2/TypeTriplets/
+# Expect   | i686-w64-mingw32
+# ...or    | x86_64-w64-mingw32
+
+opts='CC CFLAGS LD LDFLAGS LDLIBS WINDRES EXEEXT'
+
+help ()
+{
+	cat <<EOF
+Usage: $0 [OPTION]... [VAR=VALUE]...
+
+To assign environment variables (e.g., CC, CFLAGS...), specify them as
+VAR=VALUE.
+
+System types:
+  --host=HOST   cross-compile to build programs to run on a version of Windows
+                specified by HOST
+                  i86-pc-win16: 16-bit Windows
+                    Requires Windows 3.1.
+                  i386-pc-winnt | mingw32: 32-bit Windows
+                    Requires Windows NT 3.51 (or later), Windows 95 (or later),
+                    Win32s on Windows 3.1, or Wine.
+                  x86_64-pc-winnt | mingw64: 64-bit Windows
+
+EOF
+}
+
+progname=$0
+
+error ()
+{
+	echo $progname: $*
+	echo
+	help
+	exit 1
+}
+
+error_opt()
+{
+	error unrecognized option $1
+}
+
+error_host ()
+{
+	# $host is defined below.
+	error machine \`$host\' not recognized
+}
+
+failed ()
+{
+	echo failed.
+	[ -n "$*" ] && echo $*
+	exit 1
+}
+
+failed_var ()
+{
+	failed "$1= must be specified explicitly."
+}
+
+echo_default ()
+{
+	default=$1
+	shift
+	if [ -z $* ]
+	then
+		echo $default
+	else
+		echo $*
+	fi
+}
+
+check ()
+{
+	which $* >/dev/null 2>/dev/null && echo $*
+}
+
+rm config.log 2>&1
+echo 'Invocation command line was' > config.log
+echo >> config.log
+echo "  $0 $*" >> config.log
+
+# Any value for $host indicates whether we're cross-compiling for Windows.
+
+while [ $# != 0 ]
+do
+	case $1 in
+		--help | -h)
+			help
+			exit
+			;;
+		--host=*)
+			host="`echo "$1" | cut -d= -f2-`"
+			;;
+		--*)
+			error_opt
+			;;
+		*=*)
+			key="`echo "$1" | cut -d= -f1`"
+			found_key=
+
+			for opt in $opts
+			do
+				if [ "$opt" = "$key" ]
+				then
+					found_key=yes
+					break
+				fi
+			done
+
+			if [ -n $found_key ]
+			then
+				eval $1
+			else
+				vars="$vars $1"
+			fi
+			;;
+		*)
+			error_opt
+			;;
+	esac
+
+	shift
+done
+
+# Before we do anything, first check the build and host systems.
+
+build_os=`uname -o 2>/dev/null || echo unknown`
+build_machine=`uname -m`
+
+if [ -n "$host" ]
+then
+	# We are quite a bit more flexible than our documentation says we are.
+
+	# Canonicalize the host, like config.sub does.
+
+	if [ "$host" = mingw32 ]
+	then
+		host=i686-pc-mingw32
+	elif [ "$host" = mingw64 ]
+	then
+		host=x86_64-pc-mingw64
+	fi
+
+	host_cpu=`echo $host | cut -d- -f1`
+	host_vendor=`echo $host | cut -d- -f2`
+	host_os=`echo $host | cut -d- -f3-`
+
+	if [ -z "$host_cpu" -o -z "$host_vendor" -o -z "$host_os" ]
+	then
+		error_host
+	fi
+elif [ "$build_os" = Msys ]
+then
+	if [ $MSYSTEM = MSYS ]
+	then
+		host_cpu=$build_machine
+	elif [ $MSYSTEM = MINGW64 ]
+	then
+		host_cpu=x86_64
+	else
+		host_cpu=i386
+	fi
+fi
+
+case "$host_cpu" in
+	# TODO: What is actually in use for uname -m for 16-bit Unixes? (ELKS Linux, Xenix)
+	i86 | i8086 | 8086)
+		host_cpu=i86
+		;;
+	i386 | i486 | i586 | i686 | ix86 | x86)
+		host_cpu=i386
+		;;
+	x86_64 | amd64 | x64)
+		host_cpu=x86_64
+		;;
+	# ARM goes here, eventually.
+esac
+
+if [ -n "$host" ]
+then
+	# We don't really care about the vendor.
+	case $host_vendor in
+		pc | w64 | unknown)
+			;;
+		*)
+			error_host
+			;;
+	esac
+
+	case $host_os in
+		winnt | windowsnt | mingw32 | mingw64)
+			host_os=winnt
+			;;
+		win16 | win3 | win3x | windows3 | windows3x)
+			host_os=win16
+			;;
+		windows | win)
+			;;
+		*)
+			error_host
+			;;
+	esac
+
+	if [ \( $host_cpu = i86 -a $host_os = winnt \) -o \( $host_cpu != i86 -a $host_os = win16 \) ]
+	then
+		error_host
+	fi
+
+	case "$host_cpu" in
+		i86)
+			host_os=win16
+			;;
+		i386 | x86_64)
+			host_os=winnt
+			;;
+		# TODO ARM
+		*)
+			error_host
+			;;
+	esac
+
+	host=$host_cpu-$host_vendor-$host_os
+
+	# Beyond this point, we don't care about the OS.
+fi
+
+echo -n 'checking build system type... '
+echo $build_machine-$build_os
+
+echo -n 'checking host system type... '
+echo_default native $host
+
+echo -n 'checking for C compiler... '
+
+if [ -z "$CC" ]
+then
+	case $host_cpu in
+		i386)
+			mingw_cpu=i686
+			;;
+		*)
+			mingw_cpu=$host_cpu
+			;;
+	esac
+
+	if [ -n "$host" ]
+	then
+		CC=`[ $host_cpu = x86_64 -o $host_cpu = i386 ] && check $mingw_cpu-w64-mingw32-gcc || \
+		    [ $host_cpu = i386 ] && check mingw32-gcc || \
+		    [ $host_cpu = i386 ] && check i586-mingw32msvc-gcc || \
+		    [ $host_cpu = i386 -o $host_cpu = i86 ] && check owcc`
+	else
+		CC=`check gcc || check clang || check c89 || check cc`
+	fi
+	[ -n "$CC" ] || failed_var CC
+fi
+
+echo $CC
+
+echo -n 'checking for build prefix... '
+build_prefix="`echo $CC | sed -n 's/-[^-]*$//p'`"
+echo_default none $build_prefix
+
+echo -n 'checking to see if we can omit the CRT startup code... '
+omit_crt=no
+
+case `basename "$CC"` in
+	*-mingw32-gcc | mingw32-gcc)
+		omit_crt=yes
+		;;
+esac
+
+[ "$build_os" = Msys -a "$CC" = gcc ] && omit_crt=yes
+
+echo $omit_crt
+
+# echo -n 'checking C compiler type... '
+
+echo -n 'checking for C compiler flags... '
+
+if [ -z "$CFLAGS" ]
+then
+	case `basename "$CC"` in
+		gcc | *-gcc | clang | *-clang | owcc)
+			CFLAGS='-Wall -Os'
+			;;
+#		wcc)
+#			CFLAGS='-bt=windows -d_WINDOWS -i="$(%watcom)/h/win" -w4 -os -ms'
+#			;;
+		*)
+			CFLAGS='-O'
+			;;
+	esac
+	CFLAGS="$CFLAGS -DNDEBUG"
+
+	[ "$omit_crt" = yes ] && CFLAGS="$CFLAGS -DOMIT_CRT -U__MSVCRT__"
+fi
+
+echo $CFLAGS
+
+echo -n 'checking for link command... '
+
+if [ -z "$LD" ]
+then
+	if [ $omit_crt = no ]
+	then
+		LD=$CC
+	elif [ -z "$host" ]
+	then
+		LD=ld
+	elif [ -z "$build_prefix" -a -n "`check "$build_prefix-ld"`" ]
+	then
+		LD=$build_prefix-ld
+	else
+		LD=ld
+	fi
+fi
+
+echo $LD
+
+echo -n 'checking for link flags... '
+
+if [ -z "$LDFLAGS" ]
+then
+	if [ "$LD" = ld -a "$build_os" != Msys ]
+	then
+		# LD=ld excludes Cygwin and Winelib, generally.
+		case "$host_cpu" in
+			i386)
+				emulation=i386pe
+				;;
+			x86_64)
+				emulation=i386pep
+				;;
+			*)
+				failed_var LD
+				;;
+		esac
+
+		# Requires GNU ld.
+		LDFLAGS="$LDFLAGS -m $emulation"
+	fi
+
+	# We could take this back to Windows NT 3.1; this requires --subsystem windows:3.10. But that gives disabled edit
+	# controls a Windows 3 appearance on Windows 4+. Setting the subsystem version in the PE header at run time doesn't
+	# work. Thusly: minimum requirement for this build is Win32s or Windows NT 3.51.
+	[ "$build_os" = Msys -o -n "$host" ] && LDFLAGS="$LDFLAGS -pie --subsystem windows:4"
+
+	if [ $omit_crt = yes ]
+	then
+		LDFLAGS="$LDFLAGS -e_entry_point"
+
+		if [ "$build_os" = Msys ]
+		then
+			# TODO: MSYSTEM=MSYS
+			if [ "$MSYSTEM" = MINGW64 ]
+			then
+				msyslib=/mingw64/x86_64-w64-mingw32/lib
+			else
+				LDFLAGS="$LDFLAGS -L/mingw/lib"
+				msyslib=/mingw32/i686-w64-mingw32/lib
+			fi
+
+			if check cygpath >/dev/null
+			then
+				# MSYS2 only.
+				# make vs. mingw32-make changes path interpretation here.
+				LDFLAGS="$LDFLAGS -L`cygpath -m $msyslib`"
+			fi
+		else
+			LDFLAGS="$LDFLAGS -L/usr/`basename "$build_prefix"`/lib"
+		fi
+	fi
+fi
+
+echo $LDFLAGS
+
+echo -n 'checking for libraries... '
+
+if [ -z "$LDLIBS" ]
+then
+	LDLIBS='-lkernel32 -luser32 -lshell32'
+	if [ $omit_crt = yes ]
+	then
+		LDLIBS="$LDLIBS -lcrtdll"
+	fi
+fi
+
+echo $LDLIBS
+
+echo -n 'checking for resource compiler... '
+WINDRES=`check windres || check $build_prefix-windres`
+[ -z $WINDRES ] && failed_var WINDRES
+echo $WINDRES
+
+echo -n 'checking for executable extension... '
+if [ -z "$EXEEXT" ]
+then
+	# Cygwin gets no extension, which is OK.
+	[ -n "$host" -o "$build_os" = Msys ] && EXEEXT=.exe
+fi
+echo_default none $EXEEXT
+
+echo "$0: creating Makefile"
+
+rm Makefile
+
+for opt in $opts
+do
+	echo $opt=`eval echo \\\$$opt` >> Makefile
+done
+
+echo >> Makefile
+
+cat Makefile.in >> Makefile

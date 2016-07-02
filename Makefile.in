@@ -1,0 +1,13 @@
+TARGET=wait$(EXEEXT)
+OBJS=wait-rc.o wait.o
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(LD) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
+
+wait-rc.o: wait.rc
+	$(WINDRES) $< $@
+
+clean:
+	-rm $(TARGET) $(OBJS)
