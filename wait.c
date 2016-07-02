@@ -1,7 +1,9 @@
 /*
 TODO:
-- OpenWatcom
-- Win16
+- configure.bat
+- OpenWatcom 32-bit
+- OpenWatcom on Linux
+- App Manifest for comctl32 6.0
 - Test with Winelib, not just Cygwin.
 - MinGW-w64 64-bit
 - MSVC 64-bit
@@ -10,6 +12,9 @@ TODO:
 - About button with copyright.
 - ShellExecuteEx
 - HXDOS (again)
+- README.md
+- Escape to close
+- Do something about the check box?
 */
 
 /* HX-DOS doesn't support DialogBoxParam. */
@@ -47,9 +52,20 @@ There's basically three compilation modes here:
 typedef char TCHAR;
 typedef char FAR *LPTSTR;
 
-typedef int INT_PTR;
+typedef int INT;
+typedef long LONG;
+typedef unsigned long ULONG;
+
+typedef INT INT_PTR;
 typedef UINT UINT_PTR;
-typedef long LONG_PTR;
+typedef LONG LONG_PTR;
+
+#		if defined _M_I86TM || defined _M_I86SM || defined _M_I86MM
+typedef unsigned SIZE_T;
+#		endif
+#		if defined _M_I86CM || defined _M_I86LM || defined _M_I86HM
+typedef unsigned long SIZE_T;
+#		endif
 
 #		define TEXT(s) s
 
@@ -66,7 +82,7 @@ static const int DWLP_USER = DWL_USER;
 #	endif
 #endif
 
-#if defined __WATCOMC__ && !defined _WIN32 && defined _WINDOWS
+#if defined _WINDOWS && !defined _WIN32
 #	define GET_WM_COMMAND_ID(wparam, lparam)    wparam
 #	define GET_WM_COMMAND_CMD(wparam, lparam)   HIWORD(lparam)
 #else
@@ -98,11 +114,11 @@ static void _stop_timer(HWND dlg, UINT_PTR *id)
 static void _show_time(HWND dlg, LPTSTR time, DWORD seconds)
 {
 	if(seconds < 60)
-		wsprintf(time, TEXT(":%.2d"), seconds);
+		wsprintf(time, TEXT(":%.2u"), (UINT)seconds);
 	else if(seconds < 3600)
-		wsprintf(time, TEXT("%d:%.2d"), seconds / 60, seconds % 60);
+		wsprintf(time, TEXT("%lu:%.2u"), (ULONG)(seconds / 60), (UINT)(seconds % 60));
 	else
-		wsprintf(time, TEXT("%d:%.2d:%.2d"), seconds / 3600, (seconds / 60) % 60, seconds % 60);
+		wsprintf(time, TEXT("%lu:%.2u:%.2u"), (ULONG)(seconds / 3600), (UINT)((seconds / 60) % 60), (UINT)(seconds % 60));
 
 	SetDlgItemText(dlg, IDC_TIME, time);
 }
@@ -313,7 +329,7 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 	{
 	case WM_INITDIALOG:
 		self = (struct _dialog *)lparam;
-		SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR)self);
+		SetWindowLongPtr(dlg, DWLP_USER, (SIZE_T)self);
 
 		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, MAX_TIME - 1, 0);
 
@@ -353,10 +369,19 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 			case EN_UPDATE:
 				{
 					TCHAR new_time[MAX_TIME];
-					DWORD start, end;
+					UINT_PTR start, end;
 
 					GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
+
+#if defined _WINDOWS && !defined _WIN32
+					{
+						DWORD result = SendDlgItemMessage(dlg, IDC_TIME, EM_GETSEL, 0, 0);
+						start = LOWORD(result);
+						end   = HIWORD(result);
+					}
+#else
 					SendDlgItemMessage(dlg, IDC_TIME, EM_GETSEL, (WPARAM)&start, (LPARAM)&end);
+#endif
 /*					start--;
 					end--; */
 
@@ -369,7 +394,18 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 						/* Set old time. */
 						MessageBeep(MB_OK);
 						SetDlgItemText(dlg, IDC_TIME, self->time);
-						SendDlgItemMessage(dlg, IDC_TIME, EM_SETSEL, start, end);
+						SendDlgItemMessage(
+							dlg,
+							IDC_TIME,
+							EM_SETSEL,
+#if defined _WINDOWS && !defined _WIN32
+							0,
+							MAKELPARAM(0, 0)
+#else
+							start,
+							end
+#endif
+							);
 					}
 				}
 
@@ -477,11 +513,15 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 #if defined _WIN32 || !defined _WINDOWS
 	{
 		HRSRC res_info = FindResource(instance, MAKEINTRESOURCE(IDD_MAIN), RT_DIALOG);
-		// if(!res_info)
-		//	return -1;
+		HGLOBAL dlg_global;
+		DLGTEMPLATE *dlg_rsrc;
 
-		HGLOBAL dlg_global = LoadResource(instance, res_info);
-		DLGTEMPLATE *dlg_rsrc = LockResource(dlg_global);
+		/* Might as well. */
+		if(!res_info)
+			return 1;
+
+		dlg_global = LoadResource(instance, res_info);
+		dlg_rsrc = LockResource(dlg_global);
 
 		assert((dlg_rsrc->style & 0xffff0000) != 0xffff0000);
 
@@ -497,7 +537,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 		exit_code = (int)DialogBoxIndirectParam(instance, dlg_rsrc, NULL, _dialog_proc, (LPARAM)&self);
 	}
 #else
-	exit_code = (int)DialogBoxParam(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _dialog_proc, (LPARAM)&self);
+	exit_code = (int)DialogBoxParam(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _dialog_proc, (SIZE_T)&self);
 #endif
 
 #if OMIT_CRT
