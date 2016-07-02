@@ -3,6 +3,7 @@ TODO:
 - configure.bat
 - OpenWatcom 32-bit
 - OpenWatcom on Linux
+- MinGW on macOS
 - App Manifest for comctl32 6.0
 - Test with Winelib, not just Cygwin.
 - MinGW-w64 64-bit
@@ -14,7 +15,7 @@ TODO:
 - HXDOS (again)
 - README.md
 - Escape to close
-- Do something about the check box?
+- Do something about the stupid check box?
 */
 
 /* HX-DOS doesn't support DialogBoxParam. */
@@ -156,10 +157,9 @@ static BOOL _valid_time(LPTSTR time)
 
 static void _just_beep(HWND dlg)
 {
-#if defined _WINDOWS && !defined _WIN32
 	/* Windows 3.1 doesn't make sound with message boxes. */
-	MessageBeep(MB_OK);
-#endif
+	if(!HAS_WINVER_4())
+		MessageBeep(MB_OK);
 	MessageBox(dlg, TEXT("Time elapsed."), _title, MB_OK | MB_ICONINFORMATION);
 }
 

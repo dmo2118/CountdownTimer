@@ -33,23 +33,20 @@ EOF
 
 progname=$0
 
-error ()
-{
-	echo $progname: $*
-	echo
-	help
-	exit 1
-}
-
 error_opt()
 {
-	error unrecognized option $1
+	echo $progname: error: unrecognized option: $1
+	echo Try \`$progname --help\' for more information
+	echo
+	exit 1
 }
 
 error_host ()
 {
 	# $host is defined below.
-	error machine \`$host\' not recognized
+	echo $progname: machine \`$host\' not recognized
+	echo
+	exit 1
 }
 
 failed ()
@@ -99,7 +96,7 @@ do
 			host="`echo "$1" | cut -d= -f2-`"
 			;;
 		--*)
-			error_opt
+			error_opt "$1"
 			;;
 		*=*)
 			key="`echo "$1" | cut -d= -f1`"
@@ -114,7 +111,7 @@ do
 				fi
 			done
 
-			if [ -n $found_key ]
+			if [ -n "$found_key" ]
 			then
 				eval $1
 			else
@@ -122,7 +119,7 @@ do
 			fi
 			;;
 		*)
-			error_opt
+			error_opt "$1"
 			;;
 	esac
 
@@ -410,7 +407,8 @@ echo_default none $EXEEXT
 
 echo "$0: creating Makefile"
 
-rm Makefile 2>&1
+echo \# Generated from Makefile.in by $progname. > Makefile
+echo >> Makefile
 
 for opt in $opts
 do

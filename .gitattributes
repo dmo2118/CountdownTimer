@@ -2,5 +2,6 @@
 *.h             text
 *.rc            text
 configure       text eol=lf
-Makefile*       text
 Makefile.in     text eol=lf
+*.mak           text eol=crlf
+*.bat           text eol=crlf
