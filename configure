@@ -8,6 +8,10 @@
 # Expect   | i686-w64-mingw32
 # ...or    | x86_64-w64-mingw32
 
+# TODO
+# Make OpenWatcom work here.
+# Document how variables work, and which ones apply.
+
 opts='CC CFLAGS LD LDFLAGS LDLIBS WINDRES EXEEXT'
 
 help ()
@@ -348,6 +352,8 @@ then
 	# We could take this back to Windows NT 3.1; this requires --subsystem windows:3.10. But that gives disabled edit
 	# controls a Windows 3 appearance on Windows 4+. Setting the subsystem version in the PE header at run time doesn't
 	# work. Thusly: minimum requirement for this build is Win32s or Windows NT 3.51.
+	# TODO: Can a mix of --(major|minor)-(subsystem|os|image)-version make this better?
+	# -pie is for Win32s.
 	[ "$build_os" = Msys -o -n "$host" ] && LDFLAGS="$LDFLAGS -pie --subsystem windows:4"
 
 	if [ $omit_crt = yes ]

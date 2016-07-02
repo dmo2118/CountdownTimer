@@ -1,12 +1,10 @@
 /*
 TODO:
-- configure.bat
 - OpenWatcom 32-bit
 - OpenWatcom on Linux
 - MinGW on macOS
-- App Manifest for comctl32 6.0
 - Test with Winelib, not just Cygwin.
-- MinGW-w64 64-bit
+- MinGW-w64 64-bit (Don't forget 64-bit version of the manifest for comctl32!)
 - MSVC 64-bit
 - Async system()
 - Restrict countdown time edit control numerically.
@@ -310,6 +308,43 @@ static void _run_prog(HWND dlg)
 	}
 }
 
+static INT_PTR CALLBACK _about_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+	switch(msg)
+	{
+	case WM_INITDIALOG:
+		{
+			static const TCHAR license[] =
+				"Copyright (c) 2016, Dave Odell <dmo2118@gmail.com>\n"
+				"\n"
+				"Permission to use, copy, modify, and/or distribute this software for "
+				"any purpose with or without fee is hereby granted, provided that the "
+				"above copyright notice and this permission notice appear in all copies.\n"
+				"\n"
+				"THE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL "
+				"WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED "
+				"WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE "
+				"AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL "
+				"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR "
+				"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER "
+				"TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR "
+				"PERFORMANCE OF THIS SOFTWARE.\n";
+			SetDlgItemText(dlg, IDC_LICENSE, license);
+		}
+		break;
+	case WM_COMMAND:
+		switch(GET_WM_COMMAND_ID(wparam, lparam))
+		{
+		case IDCANCEL:
+			EndDialog(dlg, 0);
+			break;
+		}
+		break;
+	}
+
+	return FALSE;
+}
+
 #define MAX_TIME 10
 
 struct _dialog
@@ -321,7 +356,7 @@ struct _dialog
 
 static const struct _dialog _dialog_init = {0, TEXT(""), 0};
 
-static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
+static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	struct _dialog *self = (struct _dialog *)GetWindowLongPtr(dlg, DWLP_USER);
 
@@ -340,6 +375,12 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 			SetWindowLongPtr(start, GWL_STYLE, GetWindowLongPtr(start, GWL_STYLE) | (BS_AUTOCHECKBOX | BS_PUSHLIKE));
 		}
 #endif
+
+		{
+			HMENU sys_menu = GetSystemMenu(dlg, FALSE);
+			AppendMenu(sys_menu, MF_SEPARATOR, 0, NULL);
+			AppendMenu(sys_menu, MF_STRING, IDM_ABOUT, "&About...");
+		}
 
 		break;
 	case WM_CLOSE:
@@ -485,6 +526,14 @@ static INT_PTR CALLBACK _dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM l
 			break;
 		}
 		break;
+	case WM_SYSCOMMAND:
+		switch(wparam)
+		{
+		case IDM_ABOUT:
+			DialogBox((HINSTANCE)GetWindowLongPtr(dlg, GWLP_HINSTANCE), MAKEINTRESOURCE(IDD_ABOUT), dlg, _about_dialog_proc);
+			break;
+		}
+		break;
 	}
 	return FALSE;
 }
@@ -534,10 +583,10 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			dlg_rsrc->style |= WS_MINIMIZEBOX;
 		}
 
-		exit_code = (int)DialogBoxIndirectParam(instance, dlg_rsrc, NULL, _dialog_proc, (LPARAM)&self);
+		exit_code = (int)DialogBoxIndirectParam(instance, dlg_rsrc, NULL, _main_dialog_proc, (LPARAM)&self);
 	}
 #else
-	exit_code = (int)DialogBoxParam(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _dialog_proc, (SIZE_T)&self);
+	exit_code = (int)DialogBoxParam(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _main_dialog_proc, (SIZE_T)&self);
 #endif
 
 #if OMIT_CRT

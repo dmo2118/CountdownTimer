@@ -1,6 +1,8 @@
 @ECHO OFF
 
-REM TODO: Is there a way for DOS to suppress "Bad command or file name"?
+REM TODO:
+REM Is there a way for DOS to suppress "Bad command or file name"?
+REM Check --help.
 
 REM DOS doesn't do SETLOCAL.
 SETLOCAL
