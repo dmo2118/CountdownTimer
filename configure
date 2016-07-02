@@ -315,7 +315,7 @@ then
 	elif [ -z "$host" ]
 	then
 		LD=ld
-	elif [ -z "$build_prefix" -a -n "`check "$build_prefix-ld"`" ]
+	elif [ -n "$build_prefix" -a -n "`check "$build_prefix-ld"`" ]
 	then
 		LD=$build_prefix-ld
 	else
@@ -410,7 +410,7 @@ echo_default none $EXEEXT
 
 echo "$0: creating Makefile"
 
-rm Makefile
+rm Makefile 2>&1
 
 for opt in $opts
 do
