@@ -5,17 +5,21 @@
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #else
 #	include "windows.h"
-#	define DS_3DLOOK 0
+#	define DS_3DLOOK    0x0004L
 #	define DS_SHELLFONT 0
 #endif
 
 #define IDC_STATIC -1
 
-IDI_MAIN ICON PRELOAD DISCARDABLE "main.ico"
+// From Windows 95 PowerToys: Round Clock. Used without permission.
+// An appropriate follow-up would be to steal with Windows 7 clock artwork, and recolor it.
+// The appropriate artwork can be found in the resources of timedate.cpl.
+IDI_MAIN ICON "main.ico"
 
 // DIALOGEX doesn't work on Win32s.
 // MS Shell Dlg, DIALOG -> Microsoft Sans Serif
 // MS Shell Dlg, DIALOGEX -> Tahoma
+// TODO: What happens if we go with MS Shell Dlg 2 as our font?
 
 IDD_MAIN DIALOG DISCARDABLE 200, 160, 192, 60
 // Win32s: WS_MINIMIZEBOX allows maximizing.
@@ -55,7 +59,7 @@ END
 #	define BUILD ""
 #endif
 
-IDD_ABOUT DIALOG 0, 0, 296, 172
+IDD_ABOUT DIALOG DISCARDABLE 0, 0, 296, 172
 STYLE DS_MODALFRAME | DS_3DLOOK | DS_SHELLFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About"
 FONT 8, "MS Shell Dlg"

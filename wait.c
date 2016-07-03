@@ -1,6 +1,6 @@
 /*
 TODO:
-- OpenWatcom 32-bit
+- Unicode everywhere
 - OpenWatcom on Linux
 - MinGW on macOS
 - Test with Winelib, not just Cygwin.
@@ -8,12 +8,12 @@ TODO:
 - MSVC 64-bit
 - Async system()
 - Restrict countdown time edit control numerically.
-- About button with copyright.
-- ShellExecuteEx
+- ShellExecuteEx: it's just better.
 - HXDOS (again)
 - README.md
 - Escape to close
 - Do something about the stupid check box?
+- Use a SysLink in the about dialog, when possible. Use LinkWindow_RegisterClass on 2000; manifest takes care of things on XP.
 */
 
 /* HX-DOS doesn't support DialogBoxParam. */
@@ -96,6 +96,8 @@ BYTE _win_ver;
 #else
 #	define HAS_WINVER_4() 1
 #endif
+
+static HINSTANCE _instance;
 
 static const TCHAR _title[] = TEXT("Countdown Timer");
 
@@ -315,7 +317,7 @@ static INT_PTR CALLBACK _about_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LP
 	case WM_INITDIALOG:
 		{
 			static const TCHAR license[] =
-				"Copyright (c) 2016, Dave Odell <dmo2118@gmail.com>\n"
+				"Copyright (c) 2000-2016, Dave Odell <dmo2118@gmail.com>\n"
 				"\n"
 				"Permission to use, copy, modify, and/or distribute this software for "
 				"any purpose with or without fee is hereby granted, provided that the "
@@ -530,7 +532,7 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 		switch(wparam)
 		{
 		case IDM_ABOUT:
-			DialogBox((HINSTANCE)GetWindowLongPtr(dlg, GWLP_HINSTANCE), MAKEINTRESOURCE(IDD_ABOUT), dlg, _about_dialog_proc);
+			DialogBox(_instance, MAKEINTRESOURCE(IDD_ABOUT), dlg, _about_dialog_proc);
 			break;
 		}
 		break;
@@ -558,6 +560,8 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 #ifdef _WIN32
 	_win_ver = LOBYTE(GetVersion());
 #endif
+
+	_instance = instance;
 
 #if defined _WIN32 || !defined _WINDOWS
 	{

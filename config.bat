@@ -3,6 +3,7 @@
 REM TODO:
 REM Is there a way for DOS to suppress "Bad command or file name"?
 REM Check --help.
+REM config.log.
 
 REM DOS doesn't do SETLOCAL.
 SETLOCAL
