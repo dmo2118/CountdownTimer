@@ -440,6 +440,11 @@ then
 			LDLIBS="$LDLIBS -lmsvcrt"
 		fi
 	fi
+
+	if [ -z "$host" -a "$build_os" != "Msys" ]
+	then
+		LDLIBS="$LDLIBS -liconv"
+	fi
 fi
 
 echo $LDLIBS

@@ -68,15 +68,15 @@ BEGIN
 	PUSHBUTTON      "Close",IDC_CLOSE,152,44,36,12
 END
 
-#if defined _WIN64
+#if defined __CYGWIN__
+#	define BUILD "Built for Cygwin."
+#elif defined _WIN64
 #	define BUILD "Built for 64-bit Windows."
 #elif defined _WIN32
 /* Careful choice of wording here, just in case a 64-bit build accidentally doesn't define _WIN64. */
 #	define BUILD "Built for the Win32 API."
 #elif defined _WINDOWS
 #	define BUILD "Built for 16-bit Windows."
-#elif defined __CYGWIN__
-#	define BUILD "Built for Cygwin."
 #elif defined __unix__
 #	define BUILD "Built for Winelib on POSIX."
 #else

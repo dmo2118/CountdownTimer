@@ -87,6 +87,12 @@ static const int DWLP_USER = DWL_USER;
 #	endif
 #endif
 
+#if !defined _WINDOWS && !defined _WIN32
+#	include <iconv.h>
+#	include <locale.h>
+#endif
+
+
 #if defined _WINDOWS && !defined _WIN32
 #	define GET_WM_COMMAND_ID(wparam, lparam)    wparam
 #	define GET_WM_COMMAND_CMD(wparam, lparam)   HIWORD(lparam)
@@ -94,7 +100,7 @@ static const int DWLP_USER = DWL_USER;
 #	include <windowsx.h>
 #endif
 
-// TODO: Do the same tricks on 16-bit for Windows 95.
+/* TODO: Do the same tricks on 16-bit for Windows 95. */
 #if defined _WIN32
 BYTE _win_ver;
 #	define HAS_WINVER_4() (_win_ver >= 4)
@@ -182,9 +188,12 @@ static void _run_prog(HWND dlg)
 		UINT_PTR result;
 #endif
 
-		GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
+		UINT cmd_line_size = GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
 
 #if defined _WIN32 || defined _WINDOWS
+
+		(void)cmd_line_size;
+
 		while(isspace(*file))
 			file++;
 
@@ -310,8 +319,99 @@ static void _run_prog(HWND dlg)
 #endif
 		}
 #else
-		if(system(cmd_line) == -1)
-			MessageBox(dlg, "Error issuing a command.", _title, MB_ICONERROR | MB_OK);
+
+		{
+#ifdef UNICODE
+			const WCHAR *const cmd_line_w = cmd_line;
+			const DWORD cmd_line_w_size = cmd_line_size;
+#else
+			WCHAR *cmd_line_w = NULL;
+			DWORD cmd_line_w_size = MultiByteToWideChar(
+				CP_ACP,
+				MB_ERR_INVALID_CHARS,
+				cmd_line,
+				cmd_line_size + 1,
+				NULL,
+				0);
+
+			if(cmd_line_w_size)
+			{
+				cmd_line_w = malloc(cmd_line_w_size * sizeof(WCHAR));
+				if(cmd_line_w)
+				{
+					MultiByteToWideChar(
+						CP_ACP,
+						0,
+						cmd_line,
+						cmd_line_size + 1,
+						cmd_line_w,
+						cmd_line_w_size);
+				}
+			}
+#endif
+
+			char *cmd_line_ptr = NULL;
+
+			if(cmd_line_w)
+			{
+				iconv_t cd = iconv_open("", "UTF-16LE");
+				if(cd != (iconv_t)-1)
+				{
+					size_t cmd_line_ptr_size = 0;
+
+					char *in = (char *)cmd_line_w;
+					size_t in_left = (cmd_line_w_size + 1) * sizeof(WCHAR);
+					char *out = cmd_line_ptr;
+					size_t out_left = 0;
+
+					while(in_left)
+					{
+						if(iconv(cd, &in, &in_left, &out, &out_left) == (size_t)-1)
+						{
+							int last_error = errno;
+							if(last_error == E2BIG)
+							{
+								size_t new_size = cmd_line_ptr_size < 63 ? 63 : cmd_line_ptr_size * 2 + 1;
+								size_t out_pos = out - cmd_line_ptr;
+
+								char *new_ptr = realloc(cmd_line_ptr, new_size);
+								if(!new_ptr)
+								{
+									free(cmd_line_ptr);
+									cmd_line_ptr = NULL;
+									break;
+								}
+
+								cmd_line_ptr = new_ptr;
+								out = cmd_line_ptr + out_pos;
+								assert(out_left + new_size - cmd_line_ptr_size == new_size - out_pos);
+								out_left = new_size - out_pos;
+								cmd_line_ptr_size = new_size;
+							}
+							else
+							{
+								fwrite(cmd_line_ptr, cmd_line_ptr_size, 1, stdout);
+								printf("\n%d\n", last_error);
+								free(cmd_line_ptr);
+								cmd_line_ptr = NULL;
+								break;
+							}
+						}
+					}
+
+					iconv_close(cd);
+				}
+			}
+
+#ifndef UNICODE
+			free(cmd_line_w);
+#endif
+
+			if(!cmd_line_ptr || system(cmd_line_ptr) == -1)
+				MessageBox(dlg, TEXT("Error issuing a command."), _title, MB_ICONERROR | MB_OK);
+
+			free(cmd_line_ptr);
+		}
 #endif
 	}
 	else
@@ -566,6 +666,10 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 
 	int exit_code;
 	struct _dialog self = _dialog_init;
+
+#if !defined _WIN32 && !defined _WINDOWS
+	setlocale(LC_ALL, "");
+#endif
 
 #ifdef _WIN32
 	{
