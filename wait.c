@@ -1,18 +1,20 @@
 /*
 TODO:
 - Unicode everywhere
-- OpenWatcom on Linux
-- MinGW on macOS
 - Test with Winelib, not just Cygwin.
 - MinGW-w64 64-bit (Don't forget 64-bit version of the manifest for comctl32!)
 - MSVC 64-bit
-- Async system()
-- Restrict countdown time edit control numerically.
-- ShellExecuteEx: it's just better.
-- HXDOS (again)
 - README.md
 - Escape to close
 - Do something about the stupid check box?
+
+- Restrict countdown time edit control numerically.
+- OpenWatcom on Linux
+- MinGW on macOS
+- Async system()
+- ShellExecuteEx: it's just better.
+- Windows 3.0, 2.0, 1.0.
+- HXDOS (again)
 - Use a SysLink in the about dialog, when possible. Use LinkWindow_RegisterClass on 2000; manifest takes care of things on XP.
 */
 
@@ -294,7 +296,7 @@ static void _run_prog(HWND dlg)
 			else
 			{
 				TCHAR text[12];
-				wsprintfA(text, "%d", result);
+				wsprintf(text, TEXT("%d"), result);
 				MessageBox(dlg, text, _title, MB_ICONERROR | MB_OK);
 			}
 #endif
@@ -317,20 +319,20 @@ static INT_PTR CALLBACK _about_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LP
 	case WM_INITDIALOG:
 		{
 			static const TCHAR license[] =
-				"Copyright (c) 2000-2016, Dave Odell <dmo2118@gmail.com>\n"
-				"\n"
-				"Permission to use, copy, modify, and/or distribute this software for "
-				"any purpose with or without fee is hereby granted, provided that the "
-				"above copyright notice and this permission notice appear in all copies.\n"
-				"\n"
-				"THE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL "
-				"WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED "
-				"WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE "
-				"AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL "
-				"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR "
-				"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER "
-				"TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR "
-				"PERFORMANCE OF THIS SOFTWARE.\n";
+				TEXT("Copyright (c) 2000-2016, Dave Odell <dmo2118@gmail.com>\n")
+				TEXT("\n")
+				TEXT("Permission to use, copy, modify, and/or distribute this software for ")
+				TEXT("any purpose with or without fee is hereby granted, provided that the ")
+				TEXT("above copyright notice and this permission notice appear in all copies.\n")
+				TEXT("\n")
+				TEXT("THE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL ")
+				TEXT("WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED ")
+				TEXT("WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE ")
+				TEXT("AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL ")
+				TEXT("DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR ")
+				TEXT("PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER ")
+				TEXT("TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR ")
+				TEXT("PERFORMANCE OF THIS SOFTWARE.\n");
 			SetDlgItemText(dlg, IDC_LICENSE, license);
 		}
 		break;
@@ -381,7 +383,7 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 		{
 			HMENU sys_menu = GetSystemMenu(dlg, FALSE);
 			AppendMenu(sys_menu, MF_SEPARATOR, 0, NULL);
-			AppendMenu(sys_menu, MF_STRING, IDM_ABOUT, "&About...");
+			AppendMenu(sys_menu, MF_STRING, IDM_ABOUT, TEXT("&About..."));
 		}
 
 		break;

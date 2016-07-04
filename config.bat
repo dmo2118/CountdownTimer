@@ -4,6 +4,7 @@ REM TODO:
 REM Is there a way for DOS to suppress "Bad command or file name"?
 REM Check --help.
 REM config.log.
+REM Change the canonical name of Win16 to i86-pc-windows.
 
 REM DOS doesn't do SETLOCAL.
 SETLOCAL
