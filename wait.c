@@ -1,8 +1,6 @@
 /*
 TODO:
 - Test with Winelib, not just Cygwin.
-- MSVC 64-bit
-- Unicode & ANSI character conversion w/ Cygwin
 - README.md
 - Escape to close
 - Do something about the stupid check box?
@@ -301,7 +299,7 @@ static void _run_prog(HWND dlg)
 					FORMAT_MESSAGE_FROM_SYSTEM |
 					FORMAT_MESSAGE_MAX_WIDTH_MASK,
 				NULL,
-				result,
+				(DWORD)result,
 				0,
 				(LPTSTR)&message,
 				0,

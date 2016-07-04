@@ -16,8 +16,8 @@ wait.exe: wait.rc wait.obj wait.def
 	$(CC) $(CFLAGS) wait.def wait.obj shell.lib
 	$(RC) -D_WINDOWS wait.rc wait.exe
 !ELSE
-wait.exe: wait.res wait.obj
-	$(CC) $(CFLAGS) $** user32.lib shell32.lib /link /MACHINE:X86
+wait.exe: wait.obj wait.res
+	$(CC) $(CFLAGS) $** user32.lib shell32.lib
 !ENDIF
 
 clean:

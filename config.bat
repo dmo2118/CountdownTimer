@@ -167,11 +167,11 @@ ECHO MAKE= must be specified explicitly.
 GOTO failure
 
 :make_wmake
-SET MAKE=wmake -f
+SET MAKE=wmake -h -f
 GOTO make_done
 
 :make_nmake
-SET MAKE=nmake /f
+SET MAKE=nmake /nologo /f
 GOTO make_done
 
 :unicode_test
