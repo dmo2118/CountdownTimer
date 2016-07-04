@@ -14,9 +14,12 @@ IF "%progname%"=="" SET progname=%0
 :args
 IF "%1"=="" GOTO args_end
 
-IF "%1"=="--help" GOTO help
-IF "%1"=="--host" GOTO arg_host
-IF "%1"=="CC"     GOTO arg_cc
+IF "%1"=="--help"               GOTO help
+IF "%1"=="--host"               GOTO arg_host
+IF "%1"=="CC"                   GOTO arg_cc
+IF "%1"=="UNICODE"              GOTO arg_unicode
+IF "%1"=="--with-unicode"       GOTO arg_with_unicode
+IF "%1"=="--without-unicode"    GOTO arg_without_unicode
 GOTO arg_bad
 
 :args_end
@@ -31,20 +34,24 @@ IF "%host%"=="x86_64-w64-mingw32" SET host=x86_64-pc-winnt
 REM host=native doesn't make sense from DOS, so always detect.
 IF "%host%"==""                   GOTO host_detect
 :host_done
-
 ECHO checking host system type... %host%
 
 IF "%CC%"=="" GOTO cc_test
 :cc_done
-
 ECHO checking for C compiler... %CC%
 
 IF "%MAKE%"=="" GOTO make_test
 :make_done
 ECHO checking for build command... %MAKE%
 
+IF "%UNICODE%"=="" GOTO unicode_test
+:unicode_done
+ECHO checking for Unicode... %UNICODE%
+
 ECHO %progname%: generating make.bat
-ECHO @%MAKE% %CC%.mak host=%host% %%* > make.bat
+SET cmdline=@%MAKE% %CC%.mak host=%host%
+IF "%UNICODE%"=="yes" SET cmdline=%cmdline% UNICODE=1
+ECHO %cmdline% %%* > make.bat
 
 GOTO success
 
@@ -65,6 +72,8 @@ ECHO.                  i386-pc-winnt or mingw32: 32-bit Windows
 ECHO.                    Requires Windows NT 3.51 (or later), Windows 95 (or later),
 ECHO.                    Win32s on Windows 3.1, or Wine.
 ECHO.                  x86_64-pc-winnt or mingw64: 64-bit Windows
+ECHO.  --with(out)-unicode
+ECHO.                enables Unicode support for 32/64-bit Windows
 GOTO failure
 
 :arg_host
@@ -76,6 +85,24 @@ GOTO args
 :arg_cc
 SHIFT
 SET CC=%1
+SHIFT
+GOTO args
+
+:arg_unicode
+SHIFT
+SET UNICODE=no
+IF "%1"=="1" SET UNICODE=yes
+IF "%1"=="yes" SET UNICODE=yes
+SHIFT
+GOTO args
+
+:arg_with_unicode
+SET UNICODE=yes
+SHIFT
+GOTO args
+
+:arg_without_unicode
+SET UNICODE=no
 SHIFT
 GOTO args
 
@@ -147,16 +174,30 @@ GOTO make_done
 SET MAKE=nmake /f
 GOTO make_done
 
+:unicode_test
+IF "%PROCESSOR_ARCHITECTURE%"=="" GOTO unicode_0
+IF "%host%"=="i86-pc-win16" GOTO unicode_0
+SET UNICODE=yes
+GOTO unicode_done
+
+:unicode_0
+SET UNICODE=no
+GOTO unicode_done
+
 :success
 SET host=
 SET progname=
+SET cmdline=
 REM SET CC=
 REM SET MAKE=
+REM SET UNICODE=
 EXIT /B
 
 :failure
 SET host=
 SET progname=
+SET cmdline=
 REM SET CC=
 REM SET MAKE=
+REM SET UNICODE=
 EXIT /B 1

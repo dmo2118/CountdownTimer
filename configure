@@ -12,7 +12,7 @@
 # Make OpenWatcom work here.
 # Document how variables work, and which ones apply.
 
-opts='CC CFLAGS LD LDFLAGS LDLIBS WINDRES EXEEXT'
+opts='CC CFLAGS LD LDFLAGS LDLIBS WINDRES UNICODE EXEEXT'
 
 help ()
 {
@@ -31,6 +31,8 @@ System types:
                     Requires Windows NT 3.51 (or later), Windows 95 (or later),
                     Win32s on Windows 3.1, or Wine.
                   x86_64-pc-winnt | mingw64: 64-bit Windows
+  --with(out)-unicode
+                enables Unicode support for 32/64-bit Windows
 
 EOF
 }
@@ -98,6 +100,12 @@ do
 			;;
 		--host=*)
 			host="`echo "$1" | cut -d= -f2-`"
+			;;
+		--with-unicode)
+			UNICODE=yes
+			;;
+		--without-unicode)
+			UNICODE=no
 			;;
 		--*)
 			error_opt "$1"
@@ -282,7 +290,26 @@ esac
 
 echo $omit_crt
 
-# echo -n 'checking C compiler type... '
+echo -n 'checking for Unicode... '
+if [ -z "$UNICODE" ]
+then
+	if [ -z "$host" -o "$host_cpu" != i86 ]
+	then
+		UNICODE=yes
+	else
+		UNICODE=no
+	fi
+elif [ "$UNICODE" = 1 ]
+then
+	UNICODE=yes
+elif [ "$UNICODE" = 0 ]
+then
+	UNICODE=no
+elif [ "$UNICODE" != yes -a "$UNICODE" != no ]
+then
+	failed Invalid value for UNICODE=.
+fi
+echo $UNICODE
 
 echo -n 'checking for C compiler flags... '
 
@@ -302,6 +329,11 @@ then
 	CFLAGS="$CFLAGS -DNDEBUG"
 
 	[ "$omit_crt" = yes ] && CFLAGS="$CFLAGS -DOMIT_CRT -U__MSVCRT__"
+
+	if [ $UNICODE = yes ]
+	then
+		CFLAGS="$CFLAGS -DUNICODE"
+	fi
 fi
 
 echo $CFLAGS

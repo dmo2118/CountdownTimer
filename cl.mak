@@ -5,6 +5,10 @@ CFLAGS=/nologo /GA /W3 /O2 /DNDEBUG
 host=i386-pc-winnt
 !ENDIF
 
+!IF "$(UNICODE)"=="1"
+CFLAGS=$(CFLAGS) /DUNICODE
+!ENDIF
+
 all: wait.exe
 
 !IF "$(host)"=="i86-pc-win16"

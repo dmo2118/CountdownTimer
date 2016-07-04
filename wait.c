@@ -29,6 +29,10 @@ There's basically three compilation modes here:
 
 #define STRICT 1
 
+#if UNICODE
+#	define _UNICODE 1
+#endif
+
 #include "resource.h"
 
 #include "common.h"
@@ -90,6 +94,7 @@ static const int DWLP_USER = DWL_USER;
 #	include <windowsx.h>
 #endif
 
+// TODO: Do the same tricks on 16-bit for Windows 95.
 #if defined _WIN32
 BYTE _win_ver;
 #	define HAS_WINVER_4() (_win_ver >= 4)
@@ -170,9 +175,12 @@ static void _run_prog(HWND dlg)
 	if(IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED)
 	{
 		TCHAR cmd_line[1024];
+
+#if defined _WIN32 || defined _WINDOWS
 		TCHAR *param;
 		TCHAR *file = cmd_line;
 		UINT_PTR result;
+#endif
 
 		GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
 
@@ -542,6 +550,8 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 	return FALSE;
 }
 
+#include <stdio.h>
+
 #if OMIT_CRT
 int entry_point()
 #elif !defined _WIN32 && !defined _WINDOWS
@@ -560,7 +570,17 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 	struct _dialog self = _dialog_init;
 
 #ifdef _WIN32
-	_win_ver = LOBYTE(GetVersion());
+	{
+		DWORD win_ver = GetVersion();
+#ifdef UNICODE
+		if(win_ver & 0x80000000)
+		{
+			MessageBoxA(NULL, "This program requires Windows NT.", "Countdown Timer", MB_ICONERROR | MB_OK);
+			return EXIT_FAILURE;
+		}
+#endif
+		_win_ver = LOBYTE(win_ver);
+	}
 #endif
 
 	_instance = instance;
@@ -585,6 +605,8 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			/*
 			Windows 3.x requires maximize with minimize. Also, 3.1 doesn't draw the minimize button correctly; NT 3.51 does,
 			FWIW.
+
+			Access violation here. Windows lets it fly, apparently?
 			*/
 			dlg_rsrc->style |= WS_MINIMIZEBOX;
 		}

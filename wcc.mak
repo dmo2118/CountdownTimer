@@ -3,6 +3,10 @@
 
 CRFLAGS=-q -DNDEBUG
 
+!ifndef host
+!	define host i86-pc-win16
+!endif
+
 !ifeq host i86-pc-win16
 CC=wcc
 CRFLAGS += -bt=windows -d_WINDOWS -i="$(%watcom)/h/win"
@@ -14,6 +18,10 @@ CC=wcc386
 CRFLAGS += -bt=nt
 LDLIBS=libr kernel32 libr user32
 LDFLAGS=sys nt_win
+
+!	ifeq UNICODE 1
+CFLAGS += -DUNICODE
+!	endif
 !endif
 
 all: wait.exe
