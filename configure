@@ -328,7 +328,11 @@ then
 	esac
 	CFLAGS="$CFLAGS -DNDEBUG"
 
-	[ "$omit_crt" = yes ] && CFLAGS="$CFLAGS -DOMIT_CRT -U__MSVCRT__"
+	if [ "$omit_crt" = yes ]
+	then
+		CFLAGS="$CFLAGS -DOMIT_CRT"
+		[ "$host_cpu" = i386 ] && CFLAGS="$CFLAGS -U__MSVCRT__"
+	fi
 
 	if [ $UNICODE = yes ]
 	then
@@ -390,7 +394,12 @@ then
 
 	if [ $omit_crt = yes ]
 	then
-		LDFLAGS="$LDFLAGS -e_entry_point"
+		if [ "$host_cpu" = i386 ]
+		then
+			LDFLAGS="$LDFLAGS -e_entry_point"
+		else
+			LDFLAGS="$LDFLAGS -eentry_point"
+		fi
 
 		if [ "$build_os" = Msys ]
 		then
@@ -424,7 +433,12 @@ then
 	LDLIBS='-lkernel32 -luser32 -lshell32'
 	if [ $omit_crt = yes ]
 	then
-		LDLIBS="$LDLIBS -lcrtdll"
+		if [ $host_cpu = i386 ]
+		then
+			LDLIBS="$LDLIBS -lcrtdll"
+		else
+			LDLIBS="$LDLIBS -lmsvcrt"
+		fi
 	fi
 fi
 

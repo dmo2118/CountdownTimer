@@ -1,12 +1,12 @@
 /*
 TODO:
-- Unicode everywhere
 - Test with Winelib, not just Cygwin.
-- MinGW-w64 64-bit (Don't forget 64-bit version of the manifest for comctl32!)
 - MSVC 64-bit
+- Unicode & ANSI character conversion w/ Cygwin
 - README.md
 - Escape to close
 - Do something about the stupid check box?
+- &Hotkeys
 
 - Restrict countdown time edit control numerically.
 - OpenWatcom on Linux
@@ -549,8 +549,6 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 	}
 	return FALSE;
 }
-
-#include <stdio.h>
 
 #if OMIT_CRT
 int entry_point()
