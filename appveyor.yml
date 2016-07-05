@@ -1,4 +1,5 @@
 environment
+  matrix:
   - UNICODE: 0
   - UNICODE: 1
 
