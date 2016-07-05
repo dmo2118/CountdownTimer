@@ -723,9 +723,11 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 
 #if defined _WIN32 || !defined _WINDOWS
 	{
+		HANDLE heap = GetProcessHeap();
 		HRSRC res_info = FindResource(instance, MAKEINTRESOURCE(IDD_MAIN), RT_DIALOG);
 		HGLOBAL dlg_global;
 		DLGTEMPLATE *dlg_rsrc;
+		DLGTEMPLATE *dlg_rsrc_fixed = NULL;
 
 		/* Might as well. */
 		if(!res_info)
@@ -742,12 +744,24 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			Windows 3.x requires maximize with minimize. Also, 3.1 doesn't draw the minimize button correctly; NT 3.51 does,
 			FWIW.
 
-			Access violation here. Windows lets it fly, apparently?
+			Sometimes Windows lets us edit resource files in place; sometimes that gives us an access violation. It depends.
+			Better to play it safe.
 			*/
-			dlg_rsrc->style |= WS_MINIMIZEBOX;
+
+			DWORD dlg_size = SizeofResource(instance, res_info);
+			dlg_rsrc_fixed = HeapAlloc(heap, 0, dlg_size);
+			if(dlg_rsrc_fixed)
+			{
+				CopyMemory(dlg_rsrc_fixed, dlg_rsrc, dlg_size);
+				dlg_rsrc = dlg_rsrc_fixed;
+				dlg_rsrc->style |= WS_MINIMIZEBOX;
+			}
 		}
 
 		exit_code = (int)DialogBoxIndirectParam(instance, dlg_rsrc, NULL, _main_dialog_proc, (LPARAM)&self);
+
+		if (dlg_rsrc_fixed)
+			HeapFree(heap, 0, dlg_rsrc_fixed);
 	}
 #else
 	exit_code = (int)DialogBoxParam(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _main_dialog_proc, (SIZE_T)&self);

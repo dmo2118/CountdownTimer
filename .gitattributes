@@ -7,3 +7,5 @@ Makefile.in     text eol=lf
 *.bat           text eol=crlf
 *.manifest      text eol=crlf
 README.md       text
+*.vcxproj       text eol=crlf
+*.yml           text

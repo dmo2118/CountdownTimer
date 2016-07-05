@@ -1,0 +1,10 @@
+environment
+  - UNICODE: 0
+  - UNICODE: 1
+
+platform:
+  - x86
+  - x64
+
+before_build:
+  nmake /f cl.mak clean
