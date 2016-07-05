@@ -8,6 +8,8 @@ host=i386-pc-winnt
 # Not strictly necessary, this bit.
 !IF "$(host)"=="x86"
 host=i386-pc-winnt
+!ELSE IF "$(host)"=="Win32"
+host=i386-pc-winnt
 !ELSE IF "$(host)"=="x64"
 host=x86_64-pc-winnt
 !ENDIF

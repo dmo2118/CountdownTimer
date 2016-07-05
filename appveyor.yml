@@ -4,10 +4,11 @@ environment:
   - UNICODE: 1
 
 platform:
-  - x86
+  - Win32
   - x64
 
 install:
+  - '"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x86'
   - '"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /%PLATFORM%'
 
 before_build:

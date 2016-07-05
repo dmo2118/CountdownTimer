@@ -68,8 +68,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <NMakeOutput>wait.exe</NMakeOutput>
     <NMakePreprocessorDefinitions>WIN32;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeBuildCommandLine>nmake /f cl.mak host=$(PlatformTarget)</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>nmake /f cl.mak host=$(PlatformTarget) clean all</NMakeReBuildCommandLine>
+    <NMakeBuildCommandLine>nmake /f cl.mak host=$(Platform)</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>nmake /f cl.mak host=$(Platform) clean all</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>nmake /f cl.mak clean</NMakeCleanCommandLine>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -80,8 +80,8 @@
     <NMakeCleanCommandLine>nmake /f cl.mak UNICODE=1 clean</NMakeCleanCommandLine>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <NMakeBuildCommandLine>nmake /f cl.mak host=$(PlatformTarget)</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>nmake /f cl.mak host=$(PlatformTarget) clean all</NMakeReBuildCommandLine>
+    <NMakeBuildCommandLine>nmake /f cl.mak host=$(Platform)</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>nmake /f cl.mak host=$(Platform) clean all</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>nmake /f cl.mak clean</NMakeCleanCommandLine>
     <NMakeOutput>wait.exe</NMakeOutput>
   </PropertyGroup>
