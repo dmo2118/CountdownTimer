@@ -12,7 +12,7 @@
 # Make OpenWatcom work here.
 # Document how variables work, and which ones apply.
 
-opts='CC CFLAGS LD LDFLAGS LDLIBS WINDRES UNICODE EXEEXT'
+opts='CC UNICODE CFLAGS LD LDFLAGS LDLIBS RC RESEXT EXEEXT'
 
 help ()
 {
@@ -265,23 +265,33 @@ then
 		    [ $host_cpu = i386 ] && check mingw32-gcc || \
 		    [ $host_cpu = i386 ] && check i586-mingw32msvc-gcc || \
 		    [ $host_cpu = i386 -o $host_cpu = i86 ] && check owcc`
+	elif [ "$build_os" = Msys -o "$build_os" = Cygwin ]
+	then
+		CC=`check gcc`
 	else
-		CC=`check gcc || check clang || check c89 || check cc`
+		CC=`check winegcc` || `check winegcc-development`
 	fi
 	[ -n "$CC" ] || failed_var CC
 fi
 
 echo $CC
 
+echo -n 'checking for build suffix... '
+CC_basename=`basename $CC`
+[ "$CC_basename" = winegcc-development ] && build_suffix=-development
+echo_default none $build_suffix
+
 echo -n 'checking for build prefix... '
-build_prefix="`echo $CC | sed -n 's/-[^-]*$//p'`"
+CC_root="$CC"
+[ -n "$build_suffix" ] && CC_root=`echo "$CC_root" | sed s/$build_suffix\$//`
+build_prefix="`echo $CC_root | sed -n 's/-[^-]*$//p'`"
 echo_default none $build_prefix
 
 echo -n 'checking to see if we can omit the CRT startup code... '
 omit_crt=no
 
-case `basename "$CC"` in
-	*-mingw32-gcc | mingw32-gcc)
+case "$CC_basename" in
+	*-mingw32-gcc | mingw32-gcc | *-mingw32msvc-gcc)
 		omit_crt=yes
 		;;
 esac
@@ -315,8 +325,8 @@ echo -n 'checking for C compiler flags... '
 
 if [ -z "$CFLAGS" ]
 then
-	case `basename "$CC"` in
-		gcc | *-gcc | clang | *-clang | owcc)
+	case "$CC_basename" in
+		gcc | *-gcc | "winegcc$build_suffix" | clang | *-clang | owcc )
 			CFLAGS='-Wall -Os'
 			;;
 #		wcc)
@@ -328,16 +338,15 @@ then
 	esac
 	CFLAGS="$CFLAGS -DNDEBUG"
 
+	# CFLAGS='-O0 -g'
+
 	if [ "$omit_crt" = yes ]
 	then
 		CFLAGS="$CFLAGS -DOMIT_CRT"
 		[ "$host_cpu" = i386 ] && CFLAGS="$CFLAGS -U__MSVCRT__"
 	fi
 
-	if [ $UNICODE = yes ]
-	then
-		CFLAGS="$CFLAGS -DUNICODE"
-	fi
+	[ $UNICODE = yes ] && CFLAGS="$CFLAGS -DUNICODE"
 fi
 
 echo $CFLAGS
@@ -422,6 +431,8 @@ then
 			LDFLAGS="$LDFLAGS -L/usr/`basename "$build_prefix"`/lib"
 		fi
 	fi
+
+	[ "$UNICODE" = yes -a -z "$host" -a "$build_os" != Msys -a "$build_os" != Cygwin ] && LDFLAGS="$LDFLAGS -municode"
 fi
 
 echo $LDFLAGS
@@ -440,20 +451,45 @@ then
 			LDLIBS="$LDLIBS -lmsvcrt"
 		fi
 	fi
+
+	[ -z "$host" -a "$build_os" = Cygwin ] && LDLIBS="$LDLIBS -liconv"
 fi
 
 echo $LDLIBS
 
+# ld needs COFF/.o resources; wrc is only capable of generating .res resources.
+# Mixing and matching is not always so good.
+
 echo -n 'checking for resource compiler... '
-WINDRES=`check windres || check $build_prefix-windres`
-[ -z $WINDRES ] && failed_var WINDRES
-echo $WINDRES
+if [ -n "$host" -o "$build_os" = Msys -o "$build_os" = Cygwin ]
+then
+	RC=`check windres || check $build_prefix-windres`
+else
+	# TODO: Disambiguate this from Watcom WRC.
+	RC=`check "wrc$build_suffix"`
+fi
+[ -z $RC ] && failed_var RC
+echo $RC
+
+echo -n 'checking for resource extension... '
+if [ -z "$RESEXT" ]
+then
+	case `basename "$LD"` in
+		ld | *-ld)
+			RESEXT=.o
+			;;
+		*)
+			RESEXT=.res
+			;;
+	esac
+fi
+echo $RESEXT
 
 echo -n 'checking for executable extension... '
 if [ -z "$EXEEXT" ]
 then
 	# Cygwin gets no extension, which is OK.
-	[ -n "$host" -o "$build_os" = Msys ] && EXEEXT=.exe
+	[ -n "$host" -o "$build_os" = Msys -o `basename "$LD"` = "winegcc$build_suffix" ] && EXEEXT=.exe
 fi
 echo_default none $EXEEXT
 

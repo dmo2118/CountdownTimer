@@ -1,12 +1,12 @@
 /*
 TODO:
-- Test with Winelib, not just Cygwin.
 - README.md
 - Escape to close
 - Do something about the stupid check box?
 - &Hotkeys
-
 - Restrict countdown time edit control numerically.
+
+- Valgrind me!
 - OpenWatcom on Linux
 - MinGW on macOS
 - Async system()
@@ -14,15 +14,18 @@ TODO:
 - Windows 3.0, 2.0, 1.0.
 - HXDOS (again)
 - Use a SysLink in the about dialog, when possible. Use LinkWindow_RegisterClass on 2000; manifest takes care of things on XP.
+- Wine and Cygwin maybe need an option to spawn a console...or, you know, (x-terminal-emulator|xterm) -e works too.
+- No way to get About dialog on Wine. Make it do F1.
 */
 
 /* HX-DOS doesn't support DialogBoxParam. */
 
 /*
 There's basically three compilation modes here:
+- Winelib                       | __WINE__, _WIN32, but not _WINDOWS
 - Win32 (or 64)                 | _WIN32 (_WINDOWS may be present)
 - Win16                         | _WINDOWS
-- Non-Windows (Winelib, Cygwin) | None of the above
+- Cygwin                        | None of the above
 */
 
 #define STRICT 1
@@ -39,14 +42,19 @@ There's basically three compilation modes here:
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <process.h>
 #include <windows.h>
 
-#if defined _WIN32
+#if !defined __WINE__ && defined _WIN32
 #	include <tchar.h>
 #else
-#	define _tWinMain WinMain
-#	define _tcschr strchr
+#	ifdef _UNICODE
+/* Winelib doesn't let you use tchar.h with the system libc. */
+#		define _tWinMain wWinMain
+#		define _tcschr wcschr
+#	else
+#		define _tWinMain WinMain
+#		define _tcschr strchr
+#	endif
 
 #	ifdef _WINDOWS
 
@@ -85,7 +93,9 @@ static const int DWLP_USER = DWL_USER;
 #	endif
 #endif
 
-#if !defined _WINDOWS && !defined _WIN32
+#if defined __WINE__ || defined __CYGWIN__
+#	include <errno.h>
+#	include <iconv.h>
 #	include <locale.h>
 #endif
 
@@ -173,151 +183,48 @@ static void _just_beep(HWND dlg)
 	MessageBox(dlg, TEXT("Time elapsed."), _title, MB_OK | MB_ICONINFORMATION);
 }
 
+#if defined __CYGWIN__ || defined __WINE__
+
+static void _iconv_realloc(char **cmd_line_ptr, char **out, size_t *out_left)
+{
+	size_t out_pos = *out - *cmd_line_ptr;
+	size_t cmd_line_ptr_size = *out_left + out_pos;
+	size_t new_size = cmd_line_ptr_size < 63 ? 63 : cmd_line_ptr_size * 2 + 1;
+
+	char *new_ptr = realloc(*cmd_line_ptr, new_size);
+	if(!new_ptr)
+	{
+		free(*cmd_line_ptr);
+		*cmd_line_ptr = NULL;
+		return;
+	}
+
+	*cmd_line_ptr = new_ptr;
+	*out = *cmd_line_ptr + out_pos;
+	assert(*out_left + new_size - cmd_line_ptr_size == new_size - out_pos);
+	*out_left = new_size - out_pos;
+}
+
+#endif
+
 static void _run_prog(HWND dlg)
 {
 	if(IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED)
 	{
 		TCHAR cmd_line[1024];
 
-#if defined _WIN32 || defined _WINDOWS
-		TCHAR *param;
-		TCHAR *file = cmd_line;
-		UINT_PTR result;
-#endif
+		UINT cmd_line_size = GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
 
-		GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
-
-#if defined _WIN32 || defined _WINDOWS
-		while(isspace(*file))
-			file++;
-
-		if(*file == '"')
-		{
-			file++;
-			/* GCC translates __builtin_strchr to simply strchr. */
-			param = _tcschr(file, '"');
-
-			if(param)
-			{
-				*param = 0;
-				param++;
-			}
-		}
-		else
-		{
-			param = file;
-
-			while(*param && !isspace(*param))
-				param++;
-
-			if(*param)
-			{
-				*param = 0;
-				param++;
-			}
-		}
-
-		if(!*file)
-		{
-			_just_beep(dlg);
-			return;
-		}
-
-		result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
-		if(result <= 32)
-		{
-#if defined _WINDOWS && !defined _WIN32
-			static const char *errors[] =
-			{
-				"System was out of memory, executable file was corrupt, or relocations were invalid. ",
-				NULL,
-				"File was not found. ",
-				"Path was not found. ",
-				NULL,
-				"Attempt was made to dynamically link to a task, or there was a sharing or network-protection error. ",
-				"Library required separate data segments for each task. ",
-				NULL,
-				"There was insufficient memory to start the application. ",
-				NULL,
-				"Windows version was incorrect. ",
-				"Executable file was invalid. Either it was not a Windows application or there was an error in the .EXE image. ",
-				"Application was designed for a different operating system. ",
-				"Application was designed for MS-DOS 4.0. ",
-				"Type of executable file was unknown. ",
-				"Attempt was made to load a real-mode application (developed for an earlier version of Windows). ",
-				"Attempt was made to load a second instance of an executable file containing multiple data segments that were not marked read-only. ",
-				NULL,
-				NULL,
-				"Attempt was made to load a compressed executable file. The file must be decompressed before it can be loaded. ",
-				"Dynamic-link library (DLL) file was invalid. One of the DLLs required to run this application was corrupt. ",
-				"Application requires Microsoft Windows 32-bit extensions. ",
-				NULL,
-				NULL,
-				NULL,
-				NULL,
-				NULL,
-				NULL,
-				NULL,
-				NULL,
-				NULL,
-				NULL,
-				NULL,
-			};
-
-			char code_str[6];
-			const char *error = errors[result];
-			if(!error)
-			{
-				wsprintf(code_str, "%u", result);
-				error = code_str;
-			}
-			MessageBox(dlg, error, _title, MB_ICONERROR | MB_OK);
-#else
-			static const DWORD errors26[] =
-			{
-				ERROR_SHARING_VIOLATION,
-				ERROR_NO_ASSOCIATION,
-				ERROR_DDE_FAIL,
-				ERROR_DDE_FAIL,
-				ERROR_DDE_FAIL,
-				ERROR_NO_ASSOCIATION,
-				ERROR_MOD_NOT_FOUND
-			};
-
-			TCHAR *message;
-
-			if(result >= 26)
-				result = errors26[result - 26];
-
-			if(FormatMessage(
-				FORMAT_MESSAGE_ALLOCATE_BUFFER |
-					FORMAT_MESSAGE_IGNORE_INSERTS |
-					FORMAT_MESSAGE_FROM_SYSTEM |
-					FORMAT_MESSAGE_MAX_WIDTH_MASK,
-				NULL,
-				(DWORD)result,
-				0,
-				(LPTSTR)&message,
-				0,
-				NULL))
-			{
-				MessageBox(dlg, message, _title, MB_ICONERROR | MB_OK);
-				LocalFree(message);
-			}
-			else
-			{
-				TCHAR text[12];
-				wsprintf(text, TEXT("%d"), result);
-				MessageBox(dlg, text, _title, MB_ICONERROR | MB_OK);
-			}
-#endif
-		}
-#else
+#if defined __CYGWIN__ || defined __WINE__
 
 		{
-#ifdef UNICODE
+			char *cmd_line_ptr = NULL;
+
+#	ifdef UNICODE
 			const WCHAR *const cmd_line_w = cmd_line;
-#else
+			const DWORD cmd_line_w_size = cmd_line_size;
+#	else
+
 			WCHAR *cmd_line_w = NULL;
 			DWORD cmd_line_w_size = MultiByteToWideChar(
 				CP_ACP,
@@ -341,30 +248,198 @@ static void _run_prog(HWND dlg)
 						cmd_line_w_size);
 				}
 			}
-#endif
-
-			char *cmd_line_ptr = NULL;
+#	endif
 
 			if(cmd_line_w)
 			{
-				size_t cmd_line_ptr_size = wcstombs(NULL, cmd_line_w, 0);
-				if(cmd_line_ptr_size != (size_t)-1)
+				/*
+				The situation on Winelib:
+				wcstombs on... | accepts...     | and gives us... | which...
+				glibc          | 32-bit wchar_t | $LC_CTYPE       | won't work
+				Wine MSVCRT    | 16-bit WCHAR   | Windows-1252    | won't work
+				*/
+
+				iconv_t cd = iconv_open("", "UTF-16LE");
+				if(cd != (iconv_t)-1)
 				{
-					++cmd_line_ptr_size;
-					cmd_line_ptr = malloc(cmd_line_ptr_size);
-					if(cmd_line_ptr)
-						wcstombs(cmd_line_ptr, cmd_line_w, cmd_line_ptr_size);
+					char *in = (char *)cmd_line_w;
+					size_t in_left = (cmd_line_w_size + 1) * sizeof(WCHAR);
+					char *out = cmd_line_ptr;
+					size_t out_left = 0;
+
+					while(in_left)
+					{
+						assert(!out_left && !out || out);
+						if(!out)
+						{
+							_iconv_realloc(&cmd_line_ptr, &out, &out_left);
+							if(!cmd_line_ptr)
+								break;
+						}
+						else if(iconv(cd, &in, &in_left, &out, &out_left) == (size_t)-1)
+						{
+							int last_error = errno;
+							if(last_error == E2BIG)
+							{
+								_iconv_realloc(&cmd_line_ptr, &out, &out_left);
+								if(!cmd_line_ptr)
+									break;
+							}
+							else
+							{
+								free(cmd_line_ptr);
+								cmd_line_ptr = NULL;
+								break;
+							}
+						}
+					}
+
+					iconv_close(cd);
 				}
 			}
 
-#ifndef UNICODE
+#	ifndef UNICODE
 			free(cmd_line_w);
-#endif
+#	endif
 
 			if(!cmd_line_ptr || system(cmd_line_ptr) == -1)
 				MessageBox(dlg, TEXT("Error issuing a command."), _title, MB_ICONERROR | MB_OK);
 
 			free(cmd_line_ptr);
+		}
+
+#else
+		(void)cmd_line_size;
+
+		{
+			TCHAR *param;
+			TCHAR *file = cmd_line;
+			UINT_PTR result;
+
+			while(isspace(*file))
+				file++;
+
+			if(*file == '"')
+			{
+				file++;
+				/* GCC translates __builtin_strchr to simply strchr. */
+				param = _tcschr(file, '"');
+
+				if(param)
+				{
+					*param = 0;
+					param++;
+				}
+			}
+			else
+			{
+				param = file;
+
+				while(*param && !isspace(*param))
+					param++;
+
+				if(*param)
+				{
+					*param = 0;
+					param++;
+				}
+			}
+
+			if(!*file)
+			{
+				_just_beep(dlg);
+				return;
+			}
+
+			result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
+			if(result <= 32)
+			{
+#	if defined _WINDOWS && !defined _WIN32
+				static const char *errors[] =
+				{
+					"System was out of memory, executable file was corrupt, or relocations were invalid. ",
+					NULL,
+					"File was not found. ",
+					"Path was not found. ",
+					NULL,
+					"Attempt was made to dynamically link to a task, or there was a sharing or network-protection error. ",
+					"Library required separate data segments for each task. ",
+					NULL,
+					"There was insufficient memory to start the application. ",
+					NULL,
+					"Windows version was incorrect. ",
+					"Executable file was invalid. Either it was not a Windows application or there was an error in the .EXE image. ",
+					"Application was designed for a different operating system. ",
+					"Application was designed for MS-DOS 4.0. ",
+					"Type of executable file was unknown. ",
+					"Attempt was made to load a real-mode application (developed for an earlier version of Windows). ",
+					"Attempt was made to load a second instance of an executable file containing multiple data segments that were not marked read-only. ",
+					NULL,
+					NULL,
+					"Attempt was made to load a compressed executable file. The file must be decompressed before it can be loaded. ",
+					"Dynamic-link library (DLL) file was invalid. One of the DLLs required to run this application was corrupt. ",
+					"Application requires Microsoft Windows 32-bit extensions. ",
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+				};
+
+				char code_str[6];
+				const char *error = errors[result];
+				if(!error)
+				{
+					wsprintf(code_str, "%u", result);
+					error = code_str;
+				}
+				MessageBox(dlg, error, _title, MB_ICONERROR | MB_OK);
+#	else
+				static const DWORD errors26[] =
+				{
+					ERROR_SHARING_VIOLATION,
+					ERROR_NO_ASSOCIATION,
+					ERROR_DDE_FAIL,
+					ERROR_DDE_FAIL,
+					ERROR_DDE_FAIL,
+					ERROR_NO_ASSOCIATION,
+					ERROR_MOD_NOT_FOUND
+				};
+
+				TCHAR *message;
+
+				if(result >= 26)
+					result = errors26[result - 26];
+
+				if(FormatMessage(
+					FORMAT_MESSAGE_ALLOCATE_BUFFER |
+						FORMAT_MESSAGE_IGNORE_INSERTS |
+						FORMAT_MESSAGE_FROM_SYSTEM |
+						FORMAT_MESSAGE_MAX_WIDTH_MASK,
+					NULL,
+					(DWORD)result,
+					0,
+					(LPTSTR)&message,
+					0,
+					NULL))
+				{
+					MessageBox(dlg, message, _title, MB_ICONERROR | MB_OK);
+					LocalFree(message);
+				}
+				else
+				{
+					TCHAR text[12];
+					wsprintf(text, TEXT("%d"), result);
+					MessageBox(dlg, text, _title, MB_ICONERROR | MB_OK);
+				}
+#	endif
+			}
 		}
 #endif
 	}
@@ -606,7 +681,7 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 
 #if OMIT_CRT
 int entry_point()
-#elif !defined _WIN32 && !defined _WINDOWS
+#elif defined __CYGWIN__
 int main()
 #else
 /* WINAPI is FAR PASCAL, which is incorrect on 16-bit. */
@@ -621,7 +696,8 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 	int exit_code;
 	struct _dialog self = _dialog_init;
 
-#if !defined _WIN32 && !defined _WINDOWS
+#if defined __CYGWIN__ || defined __WINE__
+	/* iconv() needs this. */
 	setlocale(LC_ALL, "");
 #endif
 
