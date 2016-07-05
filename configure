@@ -328,6 +328,7 @@ then
 	case "$CC_basename" in
 		gcc | *-gcc | "winegcc$build_suffix" | clang | *-clang | owcc )
 			CFLAGS='-Wall -Os'
+			[ \( -n "$host" -o "$build_os" = Msys \) -a "$host_cpu" = i386 ] && CFLAGS="$CFLAGS -march=i386"
 			;;
 #		wcc)
 #			CFLAGS='-bt=windows -d_WINDOWS -i="$(%watcom)/h/win" -w4 -os -ms'
@@ -474,14 +475,12 @@ echo $RC
 echo -n 'checking for resource extension... '
 if [ -z "$RESEXT" ]
 then
-	case `basename "$LD"` in
-		ld | *-ld)
-			RESEXT=.o
-			;;
-		*)
-			RESEXT=.res
-			;;
-	esac
+	if [ `basename "$LD"` = "winegcc$build-suffix" ]
+	then
+		RESEXT=.res
+	else
+		RESEXT=.o
+	fi
 fi
 echo $RESEXT
 

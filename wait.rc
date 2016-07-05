@@ -58,14 +58,14 @@ NT 3.51: MS Sans Serif, probably because of DS_3DLOOK.
 */
 FONT 8, "MS Shell Dlg"
 BEGIN
-	LTEXT           "The following command:",IDC_STATIC,4,4,88,8
+	LTEXT           "The following &command...",IDC_STATIC,4,4,88,8
 	EDITTEXT        IDC_COMMAND,4,16,184,12,ES_AUTOHSCROLL
-	CONTROL         "Just Beep",IDC_BEEP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,4,88,8
-	LTEXT           "Will run in... (h:mm:ss)",IDC_STATIC,4,32,184,8
+	LTEXT           "Will &run in... (h:mm:ss)",IDC_STATIC,4,32,184,8
 	EDITTEXT        IDC_TIME,4,44,64,12,ES_AUTOHSCROLL
-	CONTROL         "Start",IDC_START,"Button",WS_TABSTOP,72,44,36,12
-	PUSHBUTTON      "Run Now",IDC_RUNNOW,112,44,36,12
+	CONTROL         "&Start",IDC_START,"Button",WS_TABSTOP,72,44,36,12
+	PUSHBUTTON      "Run &Now",IDC_RUNNOW,112,44,36,12
 	PUSHBUTTON      "Close",IDC_CLOSE,152,44,36,12
+	CONTROL         "Just &beep",IDC_BEEP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,140,4,48,10
 END
 
 #if defined __CYGWIN__

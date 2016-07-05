@@ -6,3 +6,4 @@ Makefile.in     text eol=lf
 *.mak           text eol=crlf
 *.bat           text eol=crlf
 *.manifest      text eol=crlf
+README.md       text

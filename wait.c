@@ -1,11 +1,9 @@
 /*
 TODO:
-- README.md
 - Escape to close
 - Do something about the stupid check box?
-- &Hotkeys
-- Restrict countdown time edit control numerically.
 
+- Appveyor!
 - Valgrind me!
 - OpenWatcom on Linux
 - MinGW on macOS
@@ -126,7 +124,7 @@ static void _stop_timer(HWND dlg, UINT_PTR *id)
 	if(*id)
 	{
 		CheckDlgButton(dlg, IDC_START, BST_UNCHECKED);
-		SetDlgItemText(dlg, IDC_START, TEXT("Start"));
+		SetDlgItemText(dlg, IDC_START, TEXT("&Start"));
 		KillTimer(dlg, *id);
 		*id = 0;
 	}
@@ -633,6 +631,12 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 
 					self->seconds = self->seconds * 60 + dig;
 
+					{
+						const DWORD max_seconds = (999 * 60 + 59) * 60 + 59;
+						if(self->seconds > max_seconds)
+							self->seconds = max_seconds;
+					}
+
 					_show_time(dlg, self->time, self->seconds);
 				}
 
@@ -649,7 +653,7 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 				if(self->timer_id)
 				{
 					CheckDlgButton(dlg, IDC_START, BST_CHECKED);
-					SetDlgItemText(dlg, IDC_START, TEXT("Stop"));
+					SetDlgItemText(dlg, IDC_START, TEXT("&Stop"));
 				}
 			}
 			else
