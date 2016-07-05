@@ -1,7 +1,7 @@
 /*
 TODO:
 - Escape to close
-- Do something about the stupid check box?
+- Just beep -> also beep, maybe?
 
 - Appveyor!
 - Valgrind me!
@@ -632,7 +632,7 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 					self->seconds = self->seconds * 60 + dig;
 
 					{
-						const DWORD max_seconds = (999 * 60 + 59) * 60 + 59;
+						const DWORD max_seconds = (999ul * 60 + 59) * 60 + 59;
 						if(self->seconds > max_seconds)
 							self->seconds = max_seconds;
 					}

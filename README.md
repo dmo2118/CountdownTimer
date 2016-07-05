@@ -8,13 +8,15 @@ Requires [Windows 3.1](https://support.microsoft.com/en-us/kb/83245) or [later](
 [compatible](https://www.winehq.org/).
 Works with 32- and 64-bit Windows.
 
+Windows RT, Windows Phone, and Windows Embedded are not supported.
+
 Downloads
 ---------
 
 Two builds are available for download:
 
-* 32-bit Unicode, for currently supported (NT-based) versions of Windows.
-* 16-bit, for Windows 3.1, Windows NT 3.x, and Windows 9x.
+* `wait.exe`: 32-bit Unicode, for currently supported (NT-based) versions of Windows.
+* `wait16.exe`: 16-bit, for Windows 3.1, Windows NT 3.x, and Windows 9x.
 
 Building from source
 --------------------
