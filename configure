@@ -296,7 +296,7 @@ case "$CC_basename" in
 		;;
 esac
 
-[ "$build_os" = Msys -a "$CC" = gcc ] && omit_crt=yes
+[ "$build_os" = Msys -a "$CC" = gcc -a "$MSYSTEM" != MSYS ] && omit_crt=yes
 
 echo $omit_crt
 
@@ -400,7 +400,7 @@ then
 	# work. Thusly: minimum requirement for this build is Win32s or Windows NT 3.51.
 	# TODO: Can a mix of --(major|minor)-(subsystem|os|image)-version make this better?
 	# -pie is for Win32s.
-	[ "$build_os" = Msys -o -n "$host" ] && LDFLAGS="$LDFLAGS -pie --subsystem windows:4"
+	[ "$build_os" = Msys -a "$MSYSTEM" != MSYS -o -n "$host" ] && LDFLAGS="$LDFLAGS -pie --subsystem windows:4"
 
 	if [ $omit_crt = yes ]
 	then
@@ -453,7 +453,7 @@ then
 		fi
 	fi
 
-	[ -z "$host" -a "$build_os" = Cygwin ] && LDLIBS="$LDLIBS -liconv"
+	[ -z "$host" -a \( "$build_os" = Cygwin -o "$build_os" = Msys -a "$MSYSTEM" = MSYS \) ] && LDLIBS="$LDLIBS -liconv"
 fi
 
 echo $LDLIBS
@@ -488,7 +488,7 @@ echo -n 'checking for executable extension... '
 if [ -z "$EXEEXT" ]
 then
 	# Cygwin gets no extension, which is OK.
-	[ -n "$host" -o "$build_os" = Msys -o `basename "$LD"` = "winegcc$build_suffix" ] && EXEEXT=.exe
+	[ -n "$host" -o "$build_os" = Msys -a "$MSYSTEM" != MSYS -o `basename "$LD"` = "winegcc$build_suffix" ] && EXEEXT=.exe
 fi
 echo_default none $EXEEXT
 
