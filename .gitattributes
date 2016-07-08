@@ -4,7 +4,8 @@
 configure       text eol=lf
 Makefile.in     text eol=lf
 README.md       text
-*.mak           text eol=crlf
 *.bat           text eol=crlf
+*.mak           text eol=crlf
 *.manifest      text eol=crlf
+*.vcxproj       text eol=crlf
 *.yml           text
