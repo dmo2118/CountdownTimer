@@ -1,4 +1,4 @@
-Countdown Timer
+Countdown Timer [![Build status](https://ci.appveyor.com/api/projects/status/gl99ww7kogeija31?svg=true)](https://ci.appveyor.com/project/dmo2118/countdowntimer)
 ===============
 
 It's an egg timer. Set the time, optionally give it a program to run, and it will count the seconds down until it's time to do
@@ -31,7 +31,7 @@ Building from source
 	./configure
 	make
 
-For both platforms, type `configure --help` for more information.
+For both platforms, type `configure --help` for more options.
 
 Not all builds are exactly equivalent. In particular, MSYS/MinGW builds are smaller and work on much older systems than builds
 produced by other toolchains.
