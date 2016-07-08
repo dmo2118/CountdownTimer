@@ -7,5 +7,5 @@ README.md       text
 *.bat           text eol=crlf
 *.mak           text eol=crlf
 *.manifest      text eol=crlf
-*.vcxproj       text eol=crlf
+*.proj          text eol=crlf
 *.yml           text

@@ -6,3 +6,6 @@ environment:
 platform:
   - x86
   - x64
+
+test: off
+deploy: off
