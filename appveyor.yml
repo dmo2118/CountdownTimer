@@ -4,10 +4,5 @@ environment:
   - UNICODE: 1
 
 platform:
-  - Win32
+  - x86
   - x64
-
-before_build:
-  IF "%PLATFORM%"=="Win32" "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x86
-  IF NOT "%PLATFORM%"=="Win32" "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /%PLATFORM%
-  "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\Bin\nmake" /f cl.mak clean
