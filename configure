@@ -240,13 +240,15 @@ then
 	# Beyond this point, we don't care about the OS.
 fi
 
-echo -n 'checking build system type... '
+printf 'checking build system type... '
 echo $build_machine-$build_os
 
-echo -n 'checking host system type... '
+[ "`uname`" = Darwin ] && echo '*** Warning: macOS has not been tested.'
+
+printf 'checking host system type... '
 echo_default native $host
 
-echo -n 'checking for C compiler... '
+printf 'checking for C compiler... '
 
 if [ -z "$CC" ]
 then
@@ -276,18 +278,18 @@ fi
 
 echo $CC
 
-echo -n 'checking for build suffix... '
+printf 'checking for build suffix... '
 CC_basename=`basename $CC`
 [ "$CC_basename" = winegcc-development ] && build_suffix=-development
 echo_default none $build_suffix
 
-echo -n 'checking for build prefix... '
+printf 'checking for build prefix... '
 CC_root="$CC"
 [ -n "$build_suffix" ] && CC_root=`echo "$CC_root" | sed s/$build_suffix\$//`
 build_prefix="`echo $CC_root | sed -n 's/-[^-]*$//p'`"
 echo_default none $build_prefix
 
-echo -n 'checking to see if we can omit the CRT startup code... '
+printf 'checking to see if we can omit the CRT startup code... '
 omit_crt=no
 
 case "$CC_basename" in
@@ -300,7 +302,7 @@ esac
 
 echo $omit_crt
 
-echo -n 'checking for Unicode... '
+printf 'checking for Unicode... '
 if [ -z "$UNICODE" ]
 then
 	if [ -z "$host" -o "$host_cpu" != i86 ]
@@ -321,7 +323,7 @@ then
 fi
 echo $UNICODE
 
-echo -n 'checking for C compiler flags... '
+printf 'checking for C compiler flags... '
 
 if [ -z "$CFLAGS" ]
 then
@@ -352,7 +354,7 @@ fi
 
 echo $CFLAGS
 
-echo -n 'checking for link command... '
+printf 'checking for link command... '
 
 if [ -z "$LD" ]
 then
@@ -372,7 +374,7 @@ fi
 
 echo $LD
 
-echo -n 'checking for link flags... '
+printf 'checking for link flags... '
 
 if [ -z "$LDFLAGS" ]
 then
@@ -438,7 +440,7 @@ fi
 
 echo $LDFLAGS
 
-echo -n 'checking for libraries... '
+printf 'checking for libraries... '
 
 if [ -z "$LDLIBS" ]
 then
@@ -461,7 +463,7 @@ echo $LDLIBS
 # ld needs COFF/.o resources; wrc is only capable of generating .res resources.
 # Mixing and matching is not always so good.
 
-echo -n 'checking for resource compiler... '
+printf 'checking for resource compiler... '
 if [ -n "$host" -o "$build_os" = Msys -o "$build_os" = Cygwin ]
 then
 	RC=`check windres || check $build_prefix-windres`
@@ -472,7 +474,7 @@ fi
 [ -z $RC ] && failed_var RC
 echo $RC
 
-echo -n 'checking for resource extension... '
+printf 'checking for resource extension... '
 if [ -z "$RESEXT" ]
 then
 	if [ `basename "$LD"` = "winegcc$build-suffix" ]
@@ -484,7 +486,7 @@ then
 fi
 echo $RESEXT
 
-echo -n 'checking for executable extension... '
+printf 'checking for executable extension... '
 if [ -z "$EXEEXT" ]
 then
 	# Cygwin gets no extension, which is OK.
