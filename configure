@@ -323,6 +323,13 @@ then
 fi
 echo $UNICODE
 
+if [ "$CC_basename" = "winegcc$build_suffix" ]
+then
+	printf 'checking Wine prefix arch... '
+	wine_prefix="`grep -m1 '^#arch' ~/.wine/system.reg 2>/dev/null | sed s/^#arch=//`"
+	echo_default none "$wine_prefix"
+fi
+
 printf 'checking for C compiler flags... '
 
 if [ -z "$CFLAGS" ]
@@ -339,6 +346,10 @@ then
 			CFLAGS='-O'
 			;;
 	esac
+
+	# winegcc -m32 needs gcc-multilib on Debian/Ubuntu.
+	[ "$wine_prefix" = win32 ] && CFLAGS="$CFLAGS -m32"
+
 	CFLAGS="$CFLAGS -DNDEBUG"
 
 	# CFLAGS='-O0 -g'
@@ -403,6 +414,8 @@ then
 	# TODO: Can a mix of --(major|minor)-(subsystem|os|image)-version make this better?
 	# -pie is for Win32s.
 	[ "$build_os" = Msys -a "$MSYSTEM" != MSYS -o -n "$host" ] && LDFLAGS="$LDFLAGS -pie --subsystem windows:4"
+
+	[ "$wine_prefix" = win32 ] && LDFLAGS="$LDFLAGS -m32"
 
 	if [ $omit_crt = yes ]
 	then
@@ -477,7 +490,7 @@ echo $RC
 printf 'checking for resource extension... '
 if [ -z "$RESEXT" ]
 then
-	if [ `basename "$LD"` = "winegcc$build-suffix" ]
+	if [ `basename "$LD"` = "winegcc$build_suffix" ]
 	then
 		RESEXT=.res
 	else
