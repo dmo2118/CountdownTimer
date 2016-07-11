@@ -692,7 +692,7 @@ int main()
 int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_line, int show_cmd)
 #endif
 {
-#if OMIT_CRT || !defined _WIN32 && !defined _WINDOWS
+#if OMIT_CRT || defined __CYGWIN__
 	/* The linker-defined symbol __ImageBase is the same as hInstance under Windows NT and Windows 95, but not Win32s. */
 	HINSTANCE instance = GetModuleHandle(NULL);
 #endif
