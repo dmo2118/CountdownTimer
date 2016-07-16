@@ -11,7 +11,7 @@ CRFLAGS=-q -DNDEBUG
 CC=wcc
 CRFLAGS += -bt=windows -d_WINDOWS -i="$(%watcom)/h" -i="$(%watcom)/h/win"
 CFLAGS += -ms
-LDLIBS=libr shell
+LDLIBS=libr shell libr ver
 LDFLAGS=sys windows
 !else ifeq host i386-pc-winnt
 CC=wcc386

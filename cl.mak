@@ -22,7 +22,7 @@ all: wait.exe
 
 !IF "$(host)"=="i86-pc-win16"
 wait.exe: wait.rc wait.obj wait.def
-	$(CC) $(CFLAGS) wait.def wait.obj shell.lib
+	$(CC) $(CFLAGS) wait.def wait.obj shell.lib ver.lib
 	$(RC) -D_WINDOWS wait.rc wait.exe
 !ELSE
 wait.exe: wait.obj wait.res

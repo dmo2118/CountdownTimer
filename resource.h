@@ -1,6 +1,7 @@
-#define IDI_MAIN    101
-#define IDD_MAIN    102
-#define IDD_ABOUT   103
+#define IDI_MAIN        101
+#define IDD_MAIN        102
+#define IDD_ABOUT       103
+#define IDR_ACCELERATOR 104
 
 #define IDC_COMMAND 1000
 #define IDC_RUNNOW  1001

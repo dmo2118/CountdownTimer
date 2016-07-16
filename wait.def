@@ -3,6 +3,11 @@ NAME
 CODE PRELOAD MOVABLE
 DATA PRELOAD MOVABLE
 
-; TODO: What should these be?
-HEAPSIZE 2048
-STACKSIZE 2048
+; HEAPSIZE only really needs to accomodate the initial environment.
+; 0 is too small. 256 seems to work OK. 1024 is a common choice.
+HEAPSIZE  1024
+
+; 4096 is too small. 8192 seems to be a common choice.
+STACKSIZE 8192
+
+; OpenWatcom uses 1024/8192 by default.

@@ -3,8 +3,8 @@ TODO:
 - Escape to close
 - Just beep -> also beep, maybe?
 
-- Appveyor!
 - Valgrind me!
+- Winelib testing via Travis CI.
 - OpenWatcom on Linux
 - MinGW on macOS
 - Async system()
@@ -13,17 +13,17 @@ TODO:
 - HXDOS (again)
 - Use a SysLink in the about dialog, when possible. Use LinkWindow_RegisterClass on 2000; manifest takes care of things on XP.
 - Wine and Cygwin maybe need an option to spawn a console...or, you know, (x-terminal-emulator|xterm) -e works too.
-- No way to get About dialog on Wine. Make it do F1.
 */
 
 /* HX-DOS doesn't support DialogBoxParam. */
 
 /*
 There's basically three compilation modes here:
-- Winelib                       | __WINE__, _WIN32, but not _WINDOWS
-- Win32 (or 64)                 | _WIN32 (_WINDOWS may be present)
-- Win16                         | _WINDOWS
-- Cygwin                        | None of the above
+                | _WIN32 | _WINDOWS | __WINE__ | __CYGWIN__
+- Win32 (or 64) |      * |  (maybe) |          |
+- Win16         |        |        * |          |
+- Winelib       |      * |          |        * |
+- Cygwin        |        |          |          |          *
 */
 
 #define STRICT 1
@@ -43,10 +43,11 @@ There's basically three compilation modes here:
 #include <windows.h>
 
 #if !defined __WINE__ && defined _WIN32
+	/* Native Win32. */
 #	include <tchar.h>
 #else
 #	ifdef _UNICODE
-/* Winelib doesn't let you use tchar.h with the system libc. */
+		/* Winelib doesn't let you use tchar.h with the system libc. */
 #		define _tWinMain wWinMain
 #		define _tcschr wcschr
 #	else
@@ -55,8 +56,9 @@ There's basically three compilation modes here:
 #	endif
 
 #	ifdef _WINDOWS
-
+		/* 16-bit Windows. */
 #		include <shellapi.h>
+#		include <ver.h>
 
 typedef char TCHAR;
 typedef char FAR *LPTSTR;
@@ -81,12 +83,28 @@ typedef unsigned long SIZE_T;
 static const UINT BST_UNCHECKED = 0;
 static const UINT BST_CHECKED   = 1;
 
+static const ULONG BS_PUSHLIKE = 0x00001000;
+
 static const UINT MB_ICONERROR  = MB_ICONSTOP;
 
 #define GetWindowLongPtr GetWindowLong
 #define SetWindowLongPtr SetWindowLong
 
 static const int DWLP_USER = DWL_USER;
+
+typedef struct
+{
+	DWORD style;
+	BYTE cdit;
+	WORD x;
+	WORD y;
+	WORD cx;
+	WORD cy;
+} DLGTEMPLATE, FAR *LPDLGTEMPLATE;
+
+#		define IDHELP 9
+
+#		define DestroyAcceleratorTable(accel)
 
 #	endif
 #endif
@@ -105,12 +123,9 @@ static const int DWLP_USER = DWL_USER;
 #	include <windowsx.h>
 #endif
 
-/* TODO: Do the same tricks on 16-bit for Windows 95. */
-#if defined _WIN32
-BYTE _win_ver;
+#if defined _WINDOWS || defined _WIN32
+BYTE _win_ver; /* May be 4 or greater even as a 16-bit app. */
 #	define HAS_WINVER_4() (_win_ver >= 4)
-#elif defined _WINDOWS
-#	define HAS_WINVER_4() 0
 #else
 #	define HAS_WINVER_4() 1
 #endif
@@ -484,6 +499,17 @@ static INT_PTR CALLBACK _about_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LP
 	return FALSE;
 }
 
+static void _about(HWND dlg)
+{
+	DialogBox(_instance, MAKEINTRESOURCE(IDD_ABOUT), dlg, _about_dialog_proc);
+}
+
+static void _end_dialog(HWND dlg, int result)
+{
+	/* EndDialog(dlg, result); */
+	PostQuitMessage(result);
+}
+
 #define MAX_TIME 10
 
 struct _dialog
@@ -507,39 +533,30 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 
 		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, MAX_TIME - 1, 0);
 
-#if defined _WIN32 || !defined _WINDOWS
 		if(HAS_WINVER_4())
 		{
 			HWND start = GetDlgItem(dlg, IDC_START);
 			SetWindowLongPtr(start, GWL_STYLE, GetWindowLongPtr(start, GWL_STYLE) | (BS_AUTOCHECKBOX | BS_PUSHLIKE));
 		}
-#endif
 
 		{
 			HMENU sys_menu = GetSystemMenu(dlg, FALSE);
 			AppendMenu(sys_menu, MF_SEPARATOR, 0, NULL);
-			AppendMenu(sys_menu, MF_STRING, IDM_ABOUT, TEXT("&About..."));
+			AppendMenu(sys_menu, MF_STRING, IDM_ABOUT, TEXT("&About...\tF1"));
 		}
 
 		break;
+
 	case WM_CLOSE:
-		EndDialog(dlg, 0);
+		_end_dialog(dlg, 0);
 		break;
-	case WM_TIMER:
-		if(self->seconds)
-		{
-			self->seconds--;
-			_show_time(dlg, self->time, self->seconds);
-		}
-		else
-		{
-			_stop_timer(dlg, &self->timer_id);
-			_run_prog(dlg);
-		}
-		break;
+
 	case WM_COMMAND:
 		switch(GET_WM_COMMAND_ID(wparam, lparam))
 		{
+		case IDHELP:
+			_about(dlg);
+			break;
 		case IDC_BEEP:
 			EnableWindow(GetDlgItem(dlg, IDC_COMMAND), IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED);
 			break;
@@ -667,16 +684,30 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 			break;
 
 		case IDC_CLOSE:
-			EndDialog(dlg, 0);
+			_end_dialog(dlg, 0);
 			break;
 		}
 		break;
+
 	case WM_SYSCOMMAND:
 		switch(wparam)
 		{
 		case IDM_ABOUT:
-			DialogBox(_instance, MAKEINTRESOURCE(IDD_ABOUT), dlg, _about_dialog_proc);
+			_about(dlg);
 			break;
+		}
+		break;
+
+	case WM_TIMER:
+		if(self->seconds)
+		{
+			self->seconds--;
+			_show_time(dlg, self->time, self->seconds);
+		}
+		else
+		{
+			_stop_timer(dlg, &self->timer_id);
+			_run_prog(dlg);
 		}
 		break;
 	}
@@ -705,29 +736,64 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 	setlocale(LC_ALL, "");
 #endif
 
-#ifdef _WIN32
 	{
+#if defined _WIN32
 		DWORD win_ver = GetVersion();
-#ifdef UNICODE
+#	ifdef UNICODE
 		if(win_ver & 0x80000000)
 		{
 			MessageBoxA(NULL, "This program requires Windows NT.", "Countdown Timer", MB_ICONERROR | MB_OK);
 			return EXIT_FAILURE;
 		}
-#endif
+#	endif
 		_win_ver = LOBYTE(win_ver);
-	}
+#elif defined _WINDOWS
+		/* Recommended by KB113892. */
+		const TCHAR _user_exe[] = TEXT("user.exe");
+		DWORD handle;
+		DWORD len = GetFileVersionInfoSize(_user_exe, &handle);
+		_win_ver = 3; /* (Cheating) */
+		if(len)
+		{
+			HGLOBAL hblock = GlobalAlloc(GMEM_FIXED, len);
+			if(hblock)
+			{
+				LPVOID block = GlobalLock(hblock);
+				if(block)
+				{
+					if(GetFileVersionInfo(_user_exe, handle, len, block))
+					{
+						VS_FIXEDFILEINFO FAR *file_info;
+						UINT file_info_len;
+						if(
+							VerQueryValue(block, TEXT("\\"), (LPVOID FAR *)&file_info, &file_info_len) &&
+							file_info_len >= sizeof(*file_info) &&
+							file_info->dwSignature == 0xFEEF04BD &&
+							file_info->dwStrucVersion > 0x00000029)
+						{
+							_win_ver = LOBYTE(HIWORD(file_info->dwFileVersionMS));
+						};
+					}
+
+					GlobalUnlock(hblock);
+				}
+
+				GlobalFree(hblock);
+			}
+		}
 #endif
+	}
 
 	_instance = instance;
 
-#if defined _WIN32 || !defined _WINDOWS
 	{
-		HANDLE heap = GetProcessHeap();
 		HRSRC res_info = FindResource(instance, MAKEINTRESOURCE(IDD_MAIN), RT_DIALOG);
 		HGLOBAL dlg_global;
-		DLGTEMPLATE *dlg_rsrc;
+		DLGTEMPLATE FAR *dlg_rsrc;
+#if !defined _WINDOWS || defined _WIN32
+		HANDLE heap = GetProcessHeap();
 		DLGTEMPLATE *dlg_rsrc_fixed = NULL;
+#endif
 
 		/* Might as well. */
 		if(!res_info)
@@ -748,24 +814,53 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			Better to play it safe.
 			*/
 
+#if !defined _WINDOWS || defined _WIN32
 			DWORD dlg_size = SizeofResource(instance, res_info);
 			dlg_rsrc_fixed = HeapAlloc(heap, 0, dlg_size);
 			if(dlg_rsrc_fixed)
 			{
 				CopyMemory(dlg_rsrc_fixed, dlg_rsrc, dlg_size);
-				dlg_rsrc = dlg_rsrc_fixed;
-				dlg_rsrc->style |= WS_MINIMIZEBOX;
+				dlg_rsrc = dlg_rsrc_fixed; /* UnlockResource is a no-op on Win32. */
 			}
+#else
+			LPDLGTEMPLATE dlg_rsrc_fixed = dlg_rsrc;
+#endif
+			if(dlg_rsrc_fixed)
+				dlg_rsrc_fixed->style |= WS_MINIMIZEBOX;
 		}
 
-		exit_code = (int)DialogBoxIndirectParam(instance, dlg_rsrc, NULL, _main_dialog_proc, (LPARAM)&self);
+		{
+			/* 16-bit: CreateDialogIndirect needs a pointer; DialogBoxIndirect needs an HGLOBAL. */
+			MSG msg;
+			HACCEL accel = LoadAccelerators(instance, MAKEINTRESOURCE(IDR_ACCELERATOR));
+			HWND dlg = CreateDialogIndirectParam(instance, dlg_rsrc, NULL, _main_dialog_proc, (SIZE_T)&self);
+			ShowWindow(dlg, SW_SHOW);
 
+			while(GetMessage(&msg, NULL, 0, 0)) /* MSDN says this is wrong. */
+			{
+				if(!TranslateAccelerator(dlg, accel, &msg))
+				{
+					if(!IsDialogMessage(dlg, &msg))
+					{
+						TranslateMessage(&msg);
+						DispatchMessage(&msg);
+					}
+				}
+			}
+
+			exit_code = msg.wParam;
+
+			DestroyAcceleratorTable(accel);
+		}
+
+		UnlockResource(dlg_global);
+		FreeResource(dlg_global);
+
+#if !defined _WINDOWS || defined _WIN32
 		if (dlg_rsrc_fixed)
 			HeapFree(heap, 0, dlg_rsrc_fixed);
-	}
-#else
-	exit_code = (int)DialogBoxParam(instance, MAKEINTRESOURCE(IDD_MAIN), NULL, _main_dialog_proc, (SIZE_T)&self);
 #endif
+	}
 
 #if OMIT_CRT
 	ExitProcess(exit_code);

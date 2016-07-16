@@ -53,4 +53,4 @@ License
 
 Countdown Timer is distributed under the terms of the
 [ISC License](https://www.isc.org/downloads/software-support-policy/isc-license/);
-see [`LICENSE.md`](LICENSE.md).
+see [`LICENSE.md`](LICENSE.md), or press F1 in the dialog.
