@@ -71,11 +71,11 @@ echo_default ()
 {
 	default=$1
 	shift
-	if [ -z $* ]
+	if [ -z "$*" ]
 	then
 		echo $default
 	else
-		echo $*
+		echo "$*"
 	fi
 }
 
@@ -263,17 +263,17 @@ then
 
 	if [ -n "$host" ]
 	then
-		CC=`[ $host_cpu = x86_64 -o $host_cpu = i386 ] && check $mingw_cpu-w64-mingw32-gcc || \
-		    [ $host_cpu = i386 ] && check mingw32-gcc || \
-		    [ $host_cpu = i386 ] && check i586-mingw32msvc-gcc || \
-		    [ $host_cpu = i386 -o $host_cpu = i86 ] && check owcc`
+		CC=`([ $host_cpu = x86_64 -o $host_cpu = i386 ] && check $mingw_cpu-w64-mingw32-gcc) || \
+		    ([ $host_cpu = i386 ] && check mingw32-gcc) || \
+		    ([ $host_cpu = i386 ] && check i586-mingw32msvc-gcc) || \
+		    ([ $host_cpu = i386 -o $host_cpu = i86 ] && check owcc)`
 	elif [ "$build_os" = Msys -o "$build_os" = Cygwin ]
 	then
 		CC=`check gcc`
 	else
 		CC=`check winegcc` || `check winegcc-development`
 	fi
-	[ -n "$CC" ] || failed_var CC
+	[ -z "$CC" ] && failed_var CC
 fi
 
 echo $CC

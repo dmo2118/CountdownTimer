@@ -423,7 +423,7 @@ static void _run_prog(HWND dlg)
 					NULL,
 					(DWORD)result,
 					0,
-					(LPTSTR)&message,
+					(LPTSTR)&message, /* Older GCC: likely spurious type-punning warning here. */
 					0,
 					NULL))
 				{
