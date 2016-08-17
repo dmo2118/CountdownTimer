@@ -286,7 +286,7 @@ static void _error_message(HWND dlg, UINT result)
 		NULL,
 		(DWORD)result,
 		0,
-		(LPTSTR)&message,
+		(LPTSTR)&message, /* Older GCC: likely spurious type-punning warning here. */
 		0,
 		NULL))
 	{
