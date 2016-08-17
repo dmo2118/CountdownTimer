@@ -13,6 +13,7 @@ TODO:
 - HXDOS (again)
 - Use a SysLink in the about dialog, when possible. Use LinkWindow_RegisterClass on 2000; manifest takes care of things on XP.
 - Wine and Cygwin maybe need an option to spawn a console...or, you know, (x-terminal-emulator|xterm) -e works too.
+- Recheck STACKSIZE in .def; maybe 4K is enough now?
 */
 
 /* HX-DOS doesn't support DialogBoxParam. */
@@ -79,6 +80,8 @@ typedef unsigned long SIZE_T;
 #		endif
 
 #		define TEXT(s) s
+
+static const UINT ERROR_NOT_ENOUGH_MEMORY = 8;
 
 static const UINT BST_UNCHECKED = 0;
 static const UINT BST_CHECKED   = 1;
@@ -220,13 +223,105 @@ static void _iconv_realloc(char **cmd_line_ptr, char **out, size_t *out_left)
 
 #endif
 
+static void _error_message(HWND dlg, UINT result)
+{
+	/* WinExec/ShellExecute errors on Win16, system errors on Win32. These overlap somewhat. */
+#	if defined _WINDOWS && !defined _WIN32
+
+	static const char *errors[] =
+	{
+		"System was out of memory, executable file was corrupt, or relocations were invalid. ",
+		NULL,
+		"File was not found. ",
+		"Path was not found. ",
+		NULL,
+		"Attempt was made to dynamically link to a task, or there was a sharing or network-protection error. ",
+		"Library required separate data segments for each task. ",
+		NULL,
+		"There was insufficient memory to start the application. ",
+		NULL,
+		"Windows version was incorrect. ",
+		"Executable file was invalid. Either it was not a Windows application or there was an error in the .EXE image. ",
+		"Application was designed for a different operating system. ",
+		"Application was designed for MS-DOS 4.0. ",
+		"Type of executable file was unknown. ",
+		"Attempt was made to load a real-mode application (developed for an earlier version of Windows). ",
+		"Attempt was made to load a second instance of an executable file containing multiple data segments that were not marked read-only. ",
+		NULL,
+		NULL,
+		"Attempt was made to load a compressed executable file. The file must be decompressed before it can be loaded. ",
+		"Dynamic-link library (DLL) file was invalid. One of the DLLs required to run this application was corrupt. ",
+		"Application requires Microsoft Windows 32-bit extensions. ",
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+	};
+
+	char code_str[6];
+	const char *error = errors[result];
+	if(!error)
+	{
+		wsprintf(code_str, "%u", result);
+		error = code_str;
+	}
+	MessageBox(dlg, error, _title, MB_ICONERROR | MB_OK);
+
+#	else
+
+	TCHAR *message;
+
+	if(FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_IGNORE_INSERTS |
+			FORMAT_MESSAGE_FROM_SYSTEM |
+			FORMAT_MESSAGE_MAX_WIDTH_MASK,
+		NULL,
+		(DWORD)result,
+		0,
+		(LPTSTR)&message,
+		0,
+		NULL))
+	{
+		MessageBox(dlg, message, _title, MB_ICONERROR | MB_OK);
+		LocalFree(message);
+	}
+	else
+	{
+		TCHAR text[12];
+		wsprintf(text, TEXT("%d"), result);
+		MessageBox(dlg, text, _title, MB_ICONERROR | MB_OK);
+	}
+
+#	endif
+}
+
 static void _run_prog(HWND dlg)
 {
+#if !defined _WINDOWS || defined _WIN32
+	SetForegroundWindow(dlg); /* For flashing taskbar buttons. Not necessary before Windows 98. */
+#endif
+
 	if(IsDlgButtonChecked(dlg, IDC_BEEP) != BST_CHECKED)
 	{
-		TCHAR cmd_line[1024];
+		HWND command = GetDlgItem(dlg, IDC_COMMAND);
+		UINT cmd_line_size = GetWindowTextLength(command) + 1;
+		TCHAR *cmd_line = (TCHAR *)LocalAlloc(LMEM_FIXED, cmd_line_size * sizeof(TCHAR));
 
-		UINT cmd_line_size = GetDlgItemText(dlg, IDC_COMMAND, cmd_line, arraysize(cmd_line));
+		if(!cmd_line)
+		{
+			_error_message(dlg, ERROR_NOT_ENOUGH_MEMORY);
+			return;
+		}
+
+		cmd_line_size = GetDlgItemText(dlg, IDC_COMMAND, cmd_line, cmd_line_size);
 
 #if defined __CYGWIN__ || defined __WINE__
 
@@ -322,7 +417,6 @@ static void _run_prog(HWND dlg)
 		}
 
 #else
-		(void)cmd_line_size;
 
 		{
 			TCHAR *param;
@@ -361,100 +455,34 @@ static void _run_prog(HWND dlg)
 			if(!*file)
 			{
 				_just_beep(dlg);
-				return;
 			}
-
-			result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
-			if(result <= 32)
+			else
 			{
-#	if defined _WINDOWS && !defined _WIN32
-				static const char *errors[] =
+				result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
+				if(result <= 32)
 				{
-					"System was out of memory, executable file was corrupt, or relocations were invalid. ",
-					NULL,
-					"File was not found. ",
-					"Path was not found. ",
-					NULL,
-					"Attempt was made to dynamically link to a task, or there was a sharing or network-protection error. ",
-					"Library required separate data segments for each task. ",
-					NULL,
-					"There was insufficient memory to start the application. ",
-					NULL,
-					"Windows version was incorrect. ",
-					"Executable file was invalid. Either it was not a Windows application or there was an error in the .EXE image. ",
-					"Application was designed for a different operating system. ",
-					"Application was designed for MS-DOS 4.0. ",
-					"Type of executable file was unknown. ",
-					"Attempt was made to load a real-mode application (developed for an earlier version of Windows). ",
-					"Attempt was made to load a second instance of an executable file containing multiple data segments that were not marked read-only. ",
-					NULL,
-					NULL,
-					"Attempt was made to load a compressed executable file. The file must be decompressed before it can be loaded. ",
-					"Dynamic-link library (DLL) file was invalid. One of the DLLs required to run this application was corrupt. ",
-					"Application requires Microsoft Windows 32-bit extensions. ",
-					NULL,
-					NULL,
-					NULL,
-					NULL,
-					NULL,
-					NULL,
-					NULL,
-					NULL,
-					NULL,
-					NULL,
-					NULL,
-				};
+#	if !defined _WINDOWS || defined _WIN32
+					static const DWORD errors26[] =
+					{
+						ERROR_SHARING_VIOLATION,
+						ERROR_NO_ASSOCIATION,
+						ERROR_DDE_FAIL,
+						ERROR_DDE_FAIL,
+						ERROR_DDE_FAIL,
+						ERROR_NO_ASSOCIATION,
+						ERROR_MOD_NOT_FOUND
+					};
 
-				char code_str[6];
-				const char *error = errors[result];
-				if(!error)
-				{
-					wsprintf(code_str, "%u", result);
-					error = code_str;
-				}
-				MessageBox(dlg, error, _title, MB_ICONERROR | MB_OK);
-#	else
-				static const DWORD errors26[] =
-				{
-					ERROR_SHARING_VIOLATION,
-					ERROR_NO_ASSOCIATION,
-					ERROR_DDE_FAIL,
-					ERROR_DDE_FAIL,
-					ERROR_DDE_FAIL,
-					ERROR_NO_ASSOCIATION,
-					ERROR_MOD_NOT_FOUND
-				};
-
-				TCHAR *message;
-
-				if(result >= 26)
-					result = errors26[result - 26];
-
-				if(FormatMessage(
-					FORMAT_MESSAGE_ALLOCATE_BUFFER |
-						FORMAT_MESSAGE_IGNORE_INSERTS |
-						FORMAT_MESSAGE_FROM_SYSTEM |
-						FORMAT_MESSAGE_MAX_WIDTH_MASK,
-					NULL,
-					(DWORD)result,
-					0,
-					(LPTSTR)&message,
-					0,
-					NULL))
-				{
-					MessageBox(dlg, message, _title, MB_ICONERROR | MB_OK);
-					LocalFree(message);
-				}
-				else
-				{
-					TCHAR text[12];
-					wsprintf(text, TEXT("%d"), result);
-					MessageBox(dlg, text, _title, MB_ICONERROR | MB_OK);
-				}
+					if(result >= 26)
+						result = errors26[result - 26];
 #	endif
+
+					_error_message(dlg, result);
+				}
 			}
 		}
 #endif
+		LocalFree(cmd_line);
 	}
 	else
 	{
@@ -810,7 +838,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			Windows 3.x requires maximize with minimize. Also, 3.1 doesn't draw the minimize button correctly; NT 3.51 does,
 			FWIW.
 
-			Sometimes Windows lets us edit resource files in place; sometimes that gives us an access violation. It depends.
+			Sometimes Windows lets us edit resource sections in place; sometimes that gives us an access violation. It depends.
 			Better to play it safe.
 			*/
 
@@ -853,7 +881,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			DestroyAcceleratorTable(accel);
 		}
 
-		UnlockResource(dlg_global);
+		(void)UnlockResource(dlg_global);
 		FreeResource(dlg_global);
 
 #if !defined _WINDOWS || defined _WIN32
