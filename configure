@@ -455,19 +455,23 @@ echo $LDFLAGS
 
 printf 'checking for -liconv... '
 
-	if [ -z "$host" -a \( \
-		"$build_os" = Cygwin -o \
-		"$build_os" = Msys -a "$MSYSTEM" = MSYS -o \
-		"$CC" = "winegcc$build_suffix" \) ]
-	then
-		tmp=`mktemp -d`
+if [ -z "$host" -a \( \
+	"$build_os" = Cygwin -o \
+	"$build_os" = Msys -a "$MSYSTEM" = MSYS -o \
+	"$CC" = "winegcc$build_suffix" \) ]
+then
+	tmp=`mktemp -d /tmp/wait-XXXXXXXXXX` || exit
 
-		if $CC -liconv -xc -o $tmp/config 2> /dev/null << EOF
+	# winegcc doesn't seem to work quite right compiling via "winegcc -xc -".
+	cp /dev/stdin $tmp/in.c <<EOF
 
-#include <windows.h>
 #include <iconv.h>
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, CHAR *, int)
+#define WINAPI __stdcall
+typedef void *HINSTANCE;
+typedef char CHAR;
+
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, CHAR *cmd_line, int show_cmd)
 {
 	iconv_open("", "");
 	return 0;
@@ -480,11 +484,12 @@ int main()
 }
 
 EOF
-		then
-			link_iconv="-liconv"
-		fi
+	if $CC $tmp/in.c -o "$tmp/out" -liconv 2> /dev/null
+	then
+		link_iconv="-liconv"
+	fi
 
-		rm -rf "$tmp"
+	rm -rf "$tmp"
 fi
 
 echo_default 'not present' $link_iconv
