@@ -55,11 +55,12 @@ There's basically three compilation modes here:
 #		define _tWinMain WinMain
 #		define _tcschr strchr
 #	endif
+#endif
 
-#	ifdef _WINDOWS
-		/* 16-bit Windows. */
-#		include <shellapi.h>
-#		include <ver.h>
+#if defined _WINDOWS && !defined _WIN32
+	/* 16-bit Windows. */
+#	include <shellapi.h>
+#	include <ver.h>
 
 typedef char TCHAR;
 typedef char FAR *LPTSTR;
@@ -105,11 +106,10 @@ typedef struct
 	WORD cy;
 } DLGTEMPLATE, FAR *LPDLGTEMPLATE;
 
-#		define IDHELP 9
+#	define IDHELP 9
 
-#		define DestroyAcceleratorTable(accel)
+#	define DestroyAcceleratorTable(accel)
 
-#	endif
 #endif
 
 #if defined __WINE__ || defined __CYGWIN__
@@ -118,12 +118,18 @@ typedef struct
 #	include <locale.h>
 #endif
 
-
 #if defined _WINDOWS && !defined _WIN32
 #	define GET_WM_COMMAND_ID(wparam, lparam)    wparam
 #	define GET_WM_COMMAND_CMD(wparam, lparam)   HIWORD(lparam)
 #else
 #	include <windowsx.h>
+#endif
+
+#if defined __MINGW32__ || defined __CYGWIN__ || defined __WINE__
+	/* Missing from some older w32api headers. */
+#	ifndef UnlockResource
+#		define UnlockResource(res_data) ((void)(res_data), 0)
+#	endif
 #endif
 
 #if defined _WINDOWS || defined _WIN32

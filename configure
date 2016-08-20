@@ -453,6 +453,42 @@ fi
 
 echo $LDFLAGS
 
+printf 'checking for -liconv... '
+
+	if [ -z "$host" -a \( \
+		"$build_os" = Cygwin -o \
+		"$build_os" = Msys -a "$MSYSTEM" = MSYS -o \
+		"$CC" = "winegcc$build_suffix" \) ]
+	then
+		tmp=`mktemp -d`
+
+		if $CC -liconv -xc -o $tmp/config 2> /dev/null << EOF
+
+#include <windows.h>
+#include <iconv.h>
+
+int WINAPI WinMain(HINSTANCE, HINSTANCE, CHAR *, int)
+{
+	iconv_open("", "");
+	return 0;
+}
+
+int main()
+{
+	iconv_open("", "");
+	return 0;
+}
+
+EOF
+		then
+			link_iconv="-liconv"
+		fi
+
+		rm -rf "$tmp"
+fi
+
+echo_default 'not present' $link_iconv
+
 printf 'checking for libraries... '
 
 if [ -z "$LDLIBS" ]
@@ -468,7 +504,7 @@ then
 		fi
 	fi
 
-	[ -z "$host" -a \( "$build_os" = Cygwin -o "$build_os" = Msys -a "$MSYSTEM" = MSYS \) ] && LDLIBS="$LDLIBS -liconv"
+	LDLIBS="$LDLIBS $link_iconv"
 fi
 
 echo $LDLIBS
