@@ -13,7 +13,7 @@ Windows RT, Windows Phone, and Windows Embedded are not supported.
 Downloads
 ---------
 
-Two builds are available for download:
+Two builds are available for [download](https://github.com/dmo2118/CountdownTimer/releases):
 
 * `wait.exe`: 32-bit Unicode, for currently supported (NT-based) versions of Windows.
 * `wait16.exe`: 16-bit, for Windows 3.1, Windows NT 3.x, and Windows 9x.
