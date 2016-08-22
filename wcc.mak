@@ -1,5 +1,4 @@
-# Where .wat = (Open)Watcom.
-# Use with Open Watcom Make.
+# Use with Open Watcom wmake.
 
 CRFLAGS=-q -DNDEBUG
 

@@ -243,8 +243,6 @@ fi
 printf 'checking build system type... '
 echo $build_machine-$build_os
 
-[ "`uname`" = Darwin ] && echo '*** Warning: macOS has not been tested.'
-
 printf 'checking host system type... '
 echo_default native $host
 
@@ -266,7 +264,7 @@ then
 		CC=`([ $host_cpu = x86_64 -o $host_cpu = i386 ] && check $mingw_cpu-w64-mingw32-gcc) || \
 		    ([ $host_cpu = i386 ] && check mingw32-gcc) || \
 		    ([ $host_cpu = i386 ] && check i586-mingw32msvc-gcc) || \
-		    ([ $host_cpu = i386 -o $host_cpu = i86 ] && check owcc)`
+		    ([ $host_cpu = i386 ] && check i386-mingw32-gcc)`
 	elif [ "$build_os" = Msys -o "$build_os" = Cygwin ]
 	then
 		CC=`check gcc`
@@ -277,6 +275,12 @@ then
 fi
 
 echo $CC
+
+if [ "$CC" = owcc -o "$CC" = wcc -o "$CC" = wcc386 ]
+then
+	# OpenWatcom wrc doesn't slot nicely into Makefile.in the way windres/Wine wrc does.
+	echo "*** Note: OpenWatcom users should use 'wmake -f wcc386.mak' instead."
+fi
 
 printf 'checking for build suffix... '
 CC_basename=`basename $CC`
@@ -335,13 +339,10 @@ printf 'checking for C compiler flags... '
 if [ -z "$CFLAGS" ]
 then
 	case "$CC_basename" in
-		gcc | *-gcc | "winegcc$build_suffix" | clang | *-clang | owcc )
+		gcc | *-gcc | "winegcc$build_suffix" | clang | *-clang )
 			CFLAGS='-Wall -Os'
 			[ \( -n "$host" -o "$build_os" = Msys \) -a "$host_cpu" = i386 ] && CFLAGS="$CFLAGS -march=i386"
 			;;
-#		wcc)
-#			CFLAGS='-bt=windows -d_WINDOWS -i="$(%watcom)/h/win" -w4 -os -ms'
-#			;;
 		*)
 			CFLAGS='-O'
 			;;
@@ -501,7 +502,7 @@ then
 	LDLIBS='-lkernel32 -luser32 -lshell32'
 	if [ $omit_crt = yes ]
 	then
-		if [ $host_cpu = i386 ]
+		if [ "$host_cpu" = i386 ]
 		then
 			LDLIBS="$LDLIBS -lcrtdll"
 		else
