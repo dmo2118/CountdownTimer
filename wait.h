@@ -22,10 +22,16 @@ There's basically three compilation modes here:
 
 #if WAIT_WIN16
 #	define LOCAL_ALLOC_PTR(bytes) (LocalAlloc(LMEM_FIXED, (bytes)))
+#	define LOCAL_ALLOC_HND(bytes) (LocalAlloc(LMEM_MOVEABLE, (bytes)))
+#	define LOCAL_LOCK(mem) (LocalLock(mem))
+#	define LOCAL_UNLOCK(mem) (LocalUnlock(mem))
 #	define LOCAL_FREE(mem) (LocalFree(mem))
 #else
 extern HANDLE global_heap;
 #	define LOCAL_ALLOC_PTR(bytes) (HeapAlloc(global_heap, 0, bytes))
+#	define LOCAL_ALLOC_HND(bytes) (LOCAL_ALLOC_PTR(bytes))
+#	define LOCAL_LOCK(mem) (mem)
+#	define LOCAL_UNLOCK(mem) ((void)(mem))
 #	define LOCAL_FREE(mem) (HeapFree(global_heap, 0, mem))
 #endif
 

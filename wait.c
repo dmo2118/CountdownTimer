@@ -547,17 +547,30 @@ struct _dialog
 	UINT_PTR timer_id;
 };
 
-static const struct _dialog _dialog_init = {0, TEXT(""), 0};
-
 static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-	struct _dialog *self = (struct _dialog *)GetWindowLongPtr(dlg, DWLP_USER);
+	HLOCAL h_self = (HLOCAL)GetWindowLongPtr(dlg, DWLP_USER);
+	struct _dialog *self = LOCAL_LOCK(h_self);
 
 	switch(msg)
 	{
 	case WM_INITDIALOG:
-		self = (struct _dialog *)lparam;
-		SetWindowLongPtr(dlg, DWLP_USER, (SIZE_T)self);
+		{
+			static const struct _dialog dialog_init = {0, TEXT(""), 0};
+			h_self = LOCAL_ALLOC_HND(sizeof(struct _dialog));
+			if(!h_self)
+			{
+				/* TODO: Is this okay for Windows 1.0? */
+				_error_message(dlg, ERROR_NOT_ENOUGH_MEMORY);
+				DestroyWindow(dlg);
+				PostQuitMessage(1);
+				return FALSE;
+			}
+			self = LOCAL_LOCK(h_self);
+			*self = dialog_init;
+		}
+
+		SetWindowLongPtr(dlg, DWLP_USER, (SIZE_T)h_self);
 
 		SendDlgItemMessage(dlg, IDC_TIME, EM_LIMITTEXT, MAX_TIME - 1, 0);
 
@@ -573,6 +586,13 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 			AppendMenu(sys_menu, MF_STRING, IDM_ABOUT, TEXT("&About...\tF1"));
 		}
 
+		break;
+
+	case WM_DESTROY:
+		SetWindowLongPtr(dlg, DWLP_USER, 0);
+		LOCAL_UNLOCK(h_self);
+		LOCAL_FREE(h_self);
+		h_self = NULL;
 		break;
 
 	case WM_CLOSE:
@@ -739,6 +759,8 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 		}
 		break;
 	}
+
+	LOCAL_UNLOCK(h_self);
 	return FALSE;
 }
 
@@ -757,7 +779,6 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 #endif
 
 	int exit_code;
-	struct _dialog self = _dialog_init;
 
 #if defined __CYGWIN__ || defined __WINE__
 	/* iconv() needs this. */
@@ -865,7 +886,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			/* 16-bit: CreateDialogIndirect needs a pointer; DialogBoxIndirect needs an HGLOBAL. */
 			MSG msg;
 			HACCEL accel = LoadAccelerators(instance, MAKEINTRESOURCE(IDR_ACCELERATOR));
-			HWND dlg = CreateDialogIndirectParam(instance, dlg_rsrc, NULL, _main_dialog_proc, (SIZE_T)&self);
+			HWND dlg = CreateDialogIndirect(instance, dlg_rsrc, NULL, _main_dialog_proc);
 			ShowWindow(dlg, SW_SHOW);
 
 			while(GetMessage(&msg, NULL, 0, 0)) /* MSDN says this is wrong. */
