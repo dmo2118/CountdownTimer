@@ -18,15 +18,6 @@ TODO:
 
 /* HX-DOS doesn't support DialogBoxParam. */
 
-/*
-There's basically three compilation modes here:
-                | _WIN32 | _WINDOWS | __WINE__ | __CYGWIN__
-- Win32 (or 64) |      * |  (maybe) |          |
-- Win16         |        |        * |          |
-- Winelib       |      * |          |        * |
-- Cygwin        |        |          |          |          *
-*/
-
 #define STRICT 1
 
 #if UNICODE
@@ -57,8 +48,7 @@ There's basically three compilation modes here:
 #	endif
 #endif
 
-#if defined _WINDOWS && !defined _WIN32
-	/* 16-bit Windows. */
+#if WAIT_WIN16
 #	include <shellapi.h>
 #	include <ver.h>
 
@@ -118,7 +108,7 @@ typedef struct
 #	include <locale.h>
 #endif
 
-#if defined _WINDOWS && !defined _WIN32
+#if WAIT_WIN16
 #	define GET_WM_COMMAND_ID(wparam, lparam)    wparam
 #	define GET_WM_COMMAND_CMD(wparam, lparam)   HIWORD(lparam)
 #else
@@ -132,7 +122,7 @@ typedef struct
 #	endif
 #endif
 
-#if defined _WINDOWS || defined _WIN32
+#if WAIT_WIN16 || defined _WIN32
 BYTE _win_ver; /* May be 4 or greater even as a 16-bit app. */
 #	define HAS_WINVER_4() (_win_ver >= 4)
 #else
@@ -232,7 +222,7 @@ static void _iconv_realloc(char **cmd_line_ptr, char **out, size_t *out_left)
 static void _error_message(HWND dlg, UINT result)
 {
 	/* WinExec/ShellExecute errors on Win16, system errors on Win32. These overlap somewhat. */
-#	if defined _WINDOWS && !defined _WIN32
+#	if WAIT_WIN16
 
 	static const char *errors[] =
 	{
@@ -311,7 +301,7 @@ static void _error_message(HWND dlg, UINT result)
 
 static void _run_prog(HWND dlg)
 {
-#if !defined _WINDOWS || defined _WIN32
+#if !WAIT_WIN16
 	SetForegroundWindow(dlg); /* For flashing taskbar buttons. Not necessary before Windows 98. */
 #endif
 
@@ -467,7 +457,7 @@ static void _run_prog(HWND dlg)
 				result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
 				if(result <= 32)
 				{
-#	if !defined _WINDOWS || defined _WIN32
+#	if !WAIT_WIN16
 					static const DWORD errors26[] =
 					{
 						ERROR_SHARING_VIOLATION,
@@ -604,7 +594,7 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 
 					GetDlgItemText(dlg, IDC_TIME, new_time, arraysize(new_time));
 
-#if defined _WINDOWS && !defined _WIN32
+#if WAIT_WIN16
 					{
 						DWORD result = SendDlgItemMessage(dlg, IDC_TIME, EM_GETSEL, 0, 0);
 						start = LOWORD(result);
@@ -629,7 +619,7 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 							dlg,
 							IDC_TIME,
 							EM_SETSEL,
-#if defined _WINDOWS && !defined _WIN32
+#if WAIT_WIN16
 							0,
 							MAKELPARAM(0, 0)
 #else
@@ -781,7 +771,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 		}
 #	endif
 		_win_ver = LOBYTE(win_ver);
-#elif defined _WINDOWS
+#elif WAIT_WIN16
 		/* Recommended by KB113892. */
 		const TCHAR _user_exe[] = TEXT("user.exe");
 		DWORD handle;
@@ -848,7 +838,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			Better to play it safe.
 			*/
 
-#if !defined _WINDOWS || defined _WIN32
+#if !WAIT_WIN16
 			DWORD dlg_size = SizeofResource(instance, res_info);
 			dlg_rsrc_fixed = HeapAlloc(heap, 0, dlg_size);
 			if(dlg_rsrc_fixed)
@@ -890,7 +880,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 		(void)UnlockResource(dlg_global);
 		FreeResource(dlg_global);
 
-#if !defined _WINDOWS || defined _WIN32
+#if !WAIT_WIN16
 		if (dlg_rsrc_fixed)
 			HeapFree(heap, 0, dlg_rsrc_fixed);
 #endif

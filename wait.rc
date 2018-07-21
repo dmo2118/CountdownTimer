@@ -1,8 +1,9 @@
 #define WINVER 0x0400 /* For old w32api. */
 
 #include "resource.h"
+#include "wait.h"
 
-#if defined _WIN32 || !defined _WINDOWS
+#if !WAIT_WIN16
 #	include "winresrc.h"
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #else
