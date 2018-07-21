@@ -35,7 +35,7 @@ There's basically three compilation modes here:
 
 #include "resource.h"
 
-#include "common.h"
+#include "wait.h"
 
 #include <assert.h>
 #include <ctype.h>

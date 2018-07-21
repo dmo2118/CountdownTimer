@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef WAIT_H
+#define WAIT_H
 
 #define arraysize(a) (sizeof(a) / sizeof(*(a)))
 
