@@ -1,13 +1,13 @@
-TARGET=wait$(EXEEXT)
-OBJS=wait.o wait-rc$(RESEXT)
+target=wait$(EXEEXT)
+objs=wait.o wait-rc$(RESEXT)
 
-all: $(TARGET)
+all: $(target)
 
-$(TARGET): $(OBJS)
-	$(LD) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
+$(target): $(objs)
+	$(LD) $(LDFLAGS) $(objs) $(LDLIBS) -o $@
 
 wait-rc$(RESEXT): wait.rc
 	$(RC) $< -o $@
 
 clean:
-	-rm $(TARGET) $(OBJS)
+	-rm $(target) $(objs)
