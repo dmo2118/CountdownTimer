@@ -443,7 +443,7 @@ static INT_PTR CALLBACK _about_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LP
 	case WM_INITDIALOG:
 		{
 			static const TCHAR license[] =
-				TEXT("Copyright (c) 2000-2016, Dave Odell <dmo2118@gmail.com>\n")
+				TEXT("Copyright (c) 2000-2018, Dave Odell <dmo2118@gmail.com>\n")
 				TEXT("\n")
 				TEXT("Permission to use, copy, modify, and/or distribute this software for ")
 				TEXT("any purpose with or without fee is hereby granted, provided that the ")
