@@ -151,7 +151,6 @@ dialog dialog_create(LPTSTR template_name)
 			const WORD *src;
 			struct dlg_template_suffix *dst_suffix;
 			WORD *dst;
-			size_t size;
 			WORD cdit = src_rsrc->cdit;
 
 			dst_rsrc->dlgVer = 1;
@@ -186,6 +185,7 @@ dialog dialog_create(LPTSTR template_name)
 
 			while(cdit)
 			{
+				WORD size;
 				DLGITEMTEMPLATEEX0 *dst_item;
 				const DLGITEMTEMPLATE *src_item;
 
