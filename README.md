@@ -8,7 +8,7 @@ Requires [Windows 3.1](https://support.microsoft.com/en-us/kb/83245) or [later](
 [compatible](https://www.winehq.org/).
 Works with 32- and 64-bit Windows.
 
-Windows RT, Windows Phone, and Windows Embedded are not supported.
+Windows 10 S, Windows RT, Windows Phone, and Windows Embedded are not supported.
 
 Downloads
 ---------
@@ -26,7 +26,7 @@ Building from source
 	configure
 	make
 
-### POSIX: MSYS, Cygwin, Linux, and OS X
+### POSIX: MSYS, Cygwin, Linux, and macOS
 
 	./configure
 	make
