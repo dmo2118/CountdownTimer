@@ -35,6 +35,60 @@ extern HANDLE global_heap;
 #	define LOCAL_FREE(mem) (HeapFree(global_heap, 0, mem))
 #endif
 
+#if WAIT_WIN16
+
+typedef char TCHAR;
+typedef char FAR *LPTSTR;
+typedef const char FAR *LPCTSTR;
+
+typedef int INT;
+#ifndef __WATCOMC__
+typedef long LONG;
+#endif
+typedef unsigned long ULONG;
+
+typedef INT INT_PTR;
+typedef UINT UINT_PTR;
+typedef LONG LONG_PTR;
+
+#	if defined _M_I86TM || defined _M_I86SM || defined _M_I86MM
+typedef unsigned SIZE_T;
+#	endif
+#	if defined _M_I86CM || defined _M_I86LM || defined _M_I86HM
+typedef unsigned long SIZE_T;
+#	endif
+
+#	define TEXT(s) s
+
+#	define ERROR_NOT_ENOUGH_MEMORY 8
+
+#	define BST_UNCHECKED   0
+#	define BST_CHECKED     1
+
+#	define BS_PUSHLIKE 0x00001000
+
+#	define MB_ICONERROR MB_ICONSTOP
+
+#	define GetWindowLongPtr GetWindowLong
+#	define SetWindowLongPtr SetWindowLong
+
+#	define DWLP_USER DWL_USER
+
+#	define IDHELP 9
+
+#	define DestroyAcceleratorTable(accel)
+
+#endif
+
+#if defined _WINDOWS || defined _WIN32
+extern BYTE global_win_ver; /* May be 4 or greater even as a 16-bit app. */
+#	define HAS_WINVER_4() (global_win_ver >= 4)
+#else
+#	define HAS_WINVER_4() 1
+#endif
+
+extern HINSTANCE global_instance;
+
 #endif
 
 #endif

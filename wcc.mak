@@ -27,8 +27,10 @@ all: wait.exe
 
 .EXTENSIONS: .res .rc
 
-wait.exe: wait.res wait.obj
-	wlink op quiet name wait $(LDFLAGS) fil wait.obj $(LDLIBS) op resource=wait.res
+objs=wait.obj dialog.obj
+
+wait.exe: wait.res $(objs)
+	wlink op quiet name wait $(LDFLAGS) fil wait.obj fil dialog.obj $(LDLIBS) op resource=wait.res
 
 .rc.res:
 	wrc $(CRFLAGS) -r -fo=$@ $<
@@ -38,5 +40,5 @@ wait.exe: wait.res wait.obj
 
 clean: .SYMBOLIC
 	-rm wait.exe
-	-rm wait.obj
+	-rm $(objs)
 	-rm wait.res

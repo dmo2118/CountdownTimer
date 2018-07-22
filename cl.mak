@@ -20,16 +20,19 @@ CFLAGS=$(CFLAGS) /DUNICODE
 
 all: wait.exe
 
-!IF "$(host)"=="i86-pc-win16"
-wait.exe: wait.rc wait.obj wait.def
-	$(CC) $(CFLAGS) wait.def wait.obj shell.lib ver.lib
-	$(RC) -D_WINDOWS wait.rc wait.exe
-!ELSE
-wait.exe: wait.obj wait.res
-	$(CC) $(CFLAGS) $** user32.lib shell32.lib
-!ENDIF
+objs=wait.obj dialog.obj
 
 clean:
 	del wait.exe
 	del wait.obj
+	del dialog.obj
 	del wait.res
+
+!IF "$(host)"=="i86-pc-win16"
+wait.exe: wait.rc $(objs) wait.def
+	$(CC) $(CFLAGS) wait.def $(objs) shell.lib ver.lib
+	$(RC) -D_WINDOWS wait.rc wait.exe
+!ELSE
+wait.exe: $(objs) wait.res
+	$(CC) $(CFLAGS) $** user32.lib shell32.lib
+!ENDIF

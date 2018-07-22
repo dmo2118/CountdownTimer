@@ -1,5 +1,5 @@
 target=wait$(EXEEXT)
-objs=wait.o wait-rc$(RESEXT)
+objs=wait.o dialog.o wait-rc$(RESEXT)
 
 all: $(target)
 

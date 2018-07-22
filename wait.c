@@ -14,9 +14,8 @@ TODO:
 - Use a SysLink in the about dialog, when possible. Use LinkWindow_RegisterClass on 2000; manifest takes care of things on XP.
 - Wine and Cygwin maybe need an option to spawn a console...or, you know, (x-terminal-emulator|xterm) -e works too.
 - Recheck STACKSIZE in .def; maybe 4K is enough now?
+- Don't use dialog.c on Winelib.
 */
-
-/* HX-DOS doesn't support DialogBoxParam. */
 
 #define STRICT 1
 
@@ -24,9 +23,10 @@ TODO:
 #	define _UNICODE 1
 #endif
 
-#include "resource.h"
-
 #include "wait.h"
+
+#include "dialog.h"
+#include "resource.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -51,55 +51,6 @@ TODO:
 #if WAIT_WIN16
 #	include <shellapi.h>
 #	include <ver.h>
-
-typedef char TCHAR;
-typedef char FAR *LPTSTR;
-
-typedef int INT;
-typedef long LONG;
-typedef unsigned long ULONG;
-
-typedef INT INT_PTR;
-typedef UINT UINT_PTR;
-typedef LONG LONG_PTR;
-
-#		if defined _M_I86TM || defined _M_I86SM || defined _M_I86MM
-typedef unsigned SIZE_T;
-#		endif
-#		if defined _M_I86CM || defined _M_I86LM || defined _M_I86HM
-typedef unsigned long SIZE_T;
-#		endif
-
-#		define TEXT(s) s
-
-static const UINT ERROR_NOT_ENOUGH_MEMORY = 8;
-
-static const UINT BST_UNCHECKED = 0;
-static const UINT BST_CHECKED   = 1;
-
-static const ULONG BS_PUSHLIKE = 0x00001000;
-
-static const UINT MB_ICONERROR  = MB_ICONSTOP;
-
-#define GetWindowLongPtr GetWindowLong
-#define SetWindowLongPtr SetWindowLong
-
-static const int DWLP_USER = DWL_USER;
-
-typedef struct
-{
-	DWORD style;
-	BYTE cdit;
-	WORD x;
-	WORD y;
-	WORD cx;
-	WORD cy;
-} DLGTEMPLATE, FAR *LPDLGTEMPLATE;
-
-#	define IDHELP 9
-
-#	define DestroyAcceleratorTable(accel)
-
 #endif
 
 #if defined __WINE__ || defined __CYGWIN__
@@ -122,14 +73,9 @@ typedef struct
 #	endif
 #endif
 
-#if WAIT_WIN16 || defined _WIN32
-BYTE _win_ver; /* May be 4 or greater even as a 16-bit app. */
-#	define HAS_WINVER_4() (_win_ver >= 4)
-#else
-#	define HAS_WINVER_4() 1
-#endif
+BYTE global_win_ver;
 
-static HINSTANCE _instance;
+HINSTANCE global_instance;
 
 #if !WAIT_WIN16
 HANDLE global_heap;
@@ -529,7 +475,12 @@ static INT_PTR CALLBACK _about_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LP
 
 static void _about(HWND dlg)
 {
-	DialogBox(_instance, MAKEINTRESOURCE(IDD_ABOUT), dlg, _about_dialog_proc);
+	dialog about = dialog_create(MAKEINTRESOURCE(IDD_ABOUT));
+	if(about)
+	{
+		dialog_box(about, dlg, _about_dialog_proc);
+		dialog_destroy(about);
+	}
 }
 
 static void _end_dialog(HWND dlg, int result)
@@ -795,13 +746,13 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			return EXIT_FAILURE;
 		}
 #	endif
-		_win_ver = LOBYTE(win_ver);
+		global_win_ver = LOBYTE(win_ver);
 #elif WAIT_WIN16
 		/* Recommended by KB113892. */
 		const TCHAR _user_exe[] = TEXT("user.exe");
 		DWORD handle;
 		DWORD len = GetFileVersionInfoSize(_user_exe, &handle);
-		_win_ver = 3; /* (Cheating) */
+		global_win_ver = 3; /* (Cheating) */
 		if(len)
 		{
 			HGLOBAL hblock = GlobalAlloc(GMEM_FIXED, len);
@@ -820,7 +771,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 							file_info->dwSignature == 0xFEEF04BD &&
 							file_info->dwStrucVersion > 0x00000029)
 						{
-							_win_ver = LOBYTE(HIWORD(file_info->dwFileVersionMS));
+							global_win_ver = LOBYTE(HIWORD(file_info->dwFileVersionMS));
 						};
 					}
 
@@ -833,32 +784,28 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 #endif
 	}
 
-	_instance = instance;
+	global_instance = instance;
 
 #if !WAIT_WIN16
 	global_heap = GetProcessHeap();
 #endif
 
 	{
-		HRSRC res_info = FindResource(instance, MAKEINTRESOURCE(IDD_MAIN), RT_DIALOG);
-		HGLOBAL dlg_global;
-		DLGTEMPLATE FAR *dlg_rsrc;
+		dialog dlg_rsrc = dialog_create(MAKEINTRESOURCE(IDD_MAIN));
 
-#if !WAIT_WIN16
-		DLGTEMPLATE *dlg_rsrc_fixed = NULL;
-#endif
-
-		/* Might as well. */
-		if(!res_info)
-			return 1;
-
-		dlg_global = LoadResource(instance, res_info);
-		dlg_rsrc = LockResource(dlg_global);
-
-		assert((dlg_rsrc->style & 0xffff0000) != 0xffff0000);
-
-		if(HAS_WINVER_4())
+		if(!dlg_rsrc)
 		{
+			_error_message(NULL, ERROR_NOT_ENOUGH_MEMORY);
+			return 1;
+		}
+
+#if USE_DIALOG
+		if(HAS_WINVER_4() && dialog_using_ex())
+		{
+			DLGTEMPLATEEX0 *dlg_rsrc_fixed = dlg_rsrc;
+			assert(dlg_rsrc_fixed->signature == 0xffff);
+			assert(dlg_rsrc_fixed->dlgVer == 1);
+
 			/*
 			Windows 3.x requires maximize with minimize. Also, 3.1 doesn't draw the minimize button correctly; NT 3.51 does,
 			FWIW.
@@ -867,26 +814,15 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			Better to play it safe.
 			*/
 
-#if !WAIT_WIN16
-			DWORD dlg_size = SizeofResource(instance, res_info);
-			dlg_rsrc_fixed = HeapAlloc(global_heap, 0, dlg_size);
-			if(dlg_rsrc_fixed)
-			{
-				CopyMemory(dlg_rsrc_fixed, dlg_rsrc, dlg_size);
-				dlg_rsrc = dlg_rsrc_fixed; /* UnlockResource is a no-op on Win32. */
-			}
-#else
-			LPDLGTEMPLATE dlg_rsrc_fixed = dlg_rsrc;
-#endif
-			if(dlg_rsrc_fixed)
-				dlg_rsrc_fixed->style |= WS_MINIMIZEBOX;
+			dlg_rsrc_fixed->style |= WS_MINIMIZEBOX;
 		}
+#endif
 
 		{
 			/* 16-bit: CreateDialogIndirect needs a pointer; DialogBoxIndirect needs an HGLOBAL. */
 			MSG msg;
 			HACCEL accel = LoadAccelerators(instance, MAKEINTRESOURCE(IDR_ACCELERATOR));
-			HWND dlg = CreateDialogIndirect(instance, dlg_rsrc, NULL, _main_dialog_proc);
+			HWND dlg = dialog_create_dialog(dlg_rsrc, NULL, _main_dialog_proc);
 			ShowWindow(dlg, SW_SHOW);
 
 			while(GetMessage(&msg, NULL, 0, 0)) /* MSDN says this is wrong. */
@@ -906,13 +842,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 			DestroyAcceleratorTable(accel);
 		}
 
-		(void)UnlockResource(dlg_global);
-		FreeResource(dlg_global);
-
-#if !WAIT_WIN16
-		if (dlg_rsrc_fixed)
-			HeapFree(global_heap, 0, dlg_rsrc_fixed);
-#endif
+		dialog_destroy(dlg_rsrc);
 	}
 
 #if OMIT_CRT
