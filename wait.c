@@ -131,6 +131,10 @@ BYTE _win_ver; /* May be 4 or greater even as a 16-bit app. */
 
 static HINSTANCE _instance;
 
+#if !WAIT_WIN16
+HANDLE global_heap;
+#endif
+
 static const TCHAR _title[] = TEXT("Countdown Timer");
 
 static void _stop_timer(HWND dlg, UINT_PTR *id)
@@ -309,7 +313,7 @@ static void _run_prog(HWND dlg)
 	{
 		HWND command = GetDlgItem(dlg, IDC_COMMAND);
 		UINT cmd_line_size = GetWindowTextLength(command) + 1;
-		TCHAR *cmd_line = (TCHAR *)LocalAlloc(LMEM_FIXED, cmd_line_size * sizeof(TCHAR));
+		TCHAR *cmd_line = (TCHAR *)LOCAL_ALLOC_PTR(cmd_line_size * sizeof(TCHAR));
 
 		if(!cmd_line)
 		{
@@ -478,7 +482,7 @@ static void _run_prog(HWND dlg)
 			}
 		}
 #endif
-		LocalFree(cmd_line);
+		LOCAL_FREE(cmd_line);
 	}
 	else
 	{
@@ -810,12 +814,16 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 
 	_instance = instance;
 
+#if !WAIT_WIN16
+	global_heap = GetProcessHeap();
+#endif
+
 	{
 		HRSRC res_info = FindResource(instance, MAKEINTRESOURCE(IDD_MAIN), RT_DIALOG);
 		HGLOBAL dlg_global;
 		DLGTEMPLATE FAR *dlg_rsrc;
-#if !defined _WINDOWS || defined _WIN32
-		HANDLE heap = GetProcessHeap();
+
+#if !WAIT_WIN16
 		DLGTEMPLATE *dlg_rsrc_fixed = NULL;
 #endif
 
@@ -840,7 +848,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 
 #if !WAIT_WIN16
 			DWORD dlg_size = SizeofResource(instance, res_info);
-			dlg_rsrc_fixed = HeapAlloc(heap, 0, dlg_size);
+			dlg_rsrc_fixed = HeapAlloc(global_heap, 0, dlg_size);
 			if(dlg_rsrc_fixed)
 			{
 				CopyMemory(dlg_rsrc_fixed, dlg_rsrc, dlg_size);
@@ -882,7 +890,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 
 #if !WAIT_WIN16
 		if (dlg_rsrc_fixed)
-			HeapFree(heap, 0, dlg_rsrc_fixed);
+			HeapFree(global_heap, 0, dlg_rsrc_fixed);
 #endif
 	}
 
