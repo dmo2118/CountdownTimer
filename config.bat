@@ -80,8 +80,8 @@ ECHO.                  i386-pc-winnt or mingw32: 32-bit Windows
 ECHO.                    Requires Windows NT 3.51 (or later), Windows 95 (or later),
 ECHO.                    Win32s on Windows 3.1, or Wine.
 ECHO.                  x86_64-pc-winnt or mingw64: 64-bit Windows
-ECHO.  --with(out)-unicode
-ECHO.                enables Unicode support for 32/64-bit Windows
+ECHO.  --without-unicode
+ECHO.                disables Unicode support for 32/64-bit Windows
 ECHO.  --lang=en     build only for a specific language (required on Windows NT 3.1
 ECHO.                and Win32s)
 GOTO failure

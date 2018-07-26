@@ -42,9 +42,6 @@ typedef char FAR *LPTSTR;
 typedef const char FAR *LPCTSTR;
 
 typedef int INT;
-#ifndef __WATCOMC__
-typedef long LONG;
-#endif
 typedef unsigned long ULONG;
 
 typedef INT INT_PTR;

@@ -23,11 +23,11 @@ typedef struct
 
 struct dlg_template_suffix
 {
-    WORD pointsize;
-    WORD weight;
-    BYTE italic;
-    BYTE charset;
-    WCHAR typeface[arraysize(DLG_TYPEFACE)];
+	WORD pointsize;
+	WORD weight;
+	BYTE italic;
+	BYTE charset;
+	WCHAR typeface[arraysize(DLG_TYPEFACE)];
 };
 
 static size_t _size_sz(const WCHAR *s)
