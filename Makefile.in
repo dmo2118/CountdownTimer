@@ -6,7 +6,7 @@ all: $(target)
 $(target): $(objs)
 	$(LD) $(LDFLAGS) $(objs) $(LDLIBS) -o $@
 
-wait-rc$(RESEXT): wait.rc
+wait-rc$(RESEXT): $(wait_rc)
 	$(RC) $< -o $@
 
 clean:

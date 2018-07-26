@@ -16,6 +16,7 @@ IF "%1"=="" GOTO args_end
 
 IF "%1"=="--help"               GOTO help
 IF "%1"=="--host"               GOTO arg_host
+IF "%1"=="--lang"               GOTO arg_lang
 IF "%1"=="CC"                   GOTO arg_cc
 IF "%1"=="UNICODE"              GOTO arg_unicode
 IF "%1"=="--with-unicode"       GOTO arg_with_unicode
@@ -48,9 +49,16 @@ IF "%UNICODE%"=="" GOTO unicode_test
 :unicode_done
 ECHO checking for Unicode... %UNICODE%
 
+IF "%lang%"=="" GOTO lang_test
+:lang_done
+ECHO checking for language... %lang%
+
 ECHO %progname%: generating make.bat
 SET cmdline=@%MAKE% %CC%.mak host=%host%
 IF "%UNICODE%"=="yes" SET cmdline=%cmdline% UNICODE=1
+IF "%lang%"=="any" GOTO bat_lang_skip
+SET cmdline=%cmdline% lang=%lang%
+:bat_lang_skip
 ECHO %cmdline% %%* > make.bat
 
 GOTO success
@@ -74,11 +82,19 @@ ECHO.                    Win32s on Windows 3.1, or Wine.
 ECHO.                  x86_64-pc-winnt or mingw64: 64-bit Windows
 ECHO.  --with(out)-unicode
 ECHO.                enables Unicode support for 32/64-bit Windows
+ECHO.  --lang=en     build only for a specific language (required on Windows NT 3.1
+ECHO.                and Win32s)
 GOTO failure
 
 :arg_host
 SHIFT
 SET host=%1
+SHIFT
+GOTO args
+
+:arg_lang
+SHIFT
+SET lang=%1
 SHIFT
 GOTO args
 
@@ -183,6 +199,11 @@ GOTO unicode_done
 :unicode_0
 SET UNICODE=no
 GOTO unicode_done
+
+:lang_test
+IF "%host%"=="i86-pc-win16" SET lang=en
+IF "%lang%"=="" SET lang=any
+GOTO lang_done
 
 :success
 SET host=

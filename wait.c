@@ -81,14 +81,18 @@ HINSTANCE global_instance;
 HANDLE global_heap;
 #endif
 
-static const TCHAR _title[] = TEXT("Countdown Timer");
+static TCHAR _title[32];
+
+#define LOAD_STRING(id, buffer) (LoadString(global_instance, id, (buffer), arraysize(buffer)))
 
 static void _stop_timer(HWND dlg, UINT_PTR *id)
 {
 	if(*id)
 	{
+		TCHAR start[32];
+		LOAD_STRING(IDS_START, start);
 		CheckDlgButton(dlg, IDC_START, BST_UNCHECKED);
-		SetDlgItemText(dlg, IDC_START, TEXT("&Start"));
+		SetDlgItemText(dlg, IDC_START, start);
 		KillTimer(dlg, *id);
 		*id = 0;
 	}
@@ -139,10 +143,13 @@ static BOOL _valid_time(LPTSTR time)
 
 static void _just_beep(HWND dlg)
 {
+	TCHAR time_elapsed[32];
+
 	/* Windows 3.1 doesn't make sound with message boxes. */
 	if(!HAS_WINVER_4())
 		MessageBeep(MB_OK);
-	MessageBox(dlg, TEXT("Time elapsed."), _title, MB_OK | MB_ICONINFORMATION);
+	LOAD_STRING(IDS_TIME_ELAPSED, time_elapsed);
+	MessageBox(dlg, time_elapsed, _title, MB_OK | MB_ICONINFORMATION);
 }
 
 #if defined __CYGWIN__ || defined __WINE__
@@ -174,49 +181,13 @@ static void _error_message(HWND dlg, UINT result)
 	/* WinExec/ShellExecute errors on Win16, system errors on Win32. These overlap somewhat. */
 #	if WAIT_WIN16
 
-	static const char *errors[] =
-	{
-		"System was out of memory, executable file was corrupt, or relocations were invalid. ",
-		NULL,
-		"File was not found. ",
-		"Path was not found. ",
-		NULL,
-		"Attempt was made to dynamically link to a task, or there was a sharing or network-protection error. ",
-		"Library required separate data segments for each task. ",
-		NULL,
-		"There was insufficient memory to start the application. ",
-		NULL,
-		"Windows version was incorrect. ",
-		"Executable file was invalid. Either it was not a Windows application or there was an error in the .EXE image. ",
-		"Application was designed for a different operating system. ",
-		"Application was designed for MS-DOS 4.0. ",
-		"Type of executable file was unknown. ",
-		"Attempt was made to load a real-mode application (developed for an earlier version of Windows). ",
-		"Attempt was made to load a second instance of an executable file containing multiple data segments that were not marked read-only. ",
-		NULL,
-		NULL,
-		"Attempt was made to load a compressed executable file. The file must be decompressed before it can be loaded. ",
-		"Dynamic-link library (DLL) file was invalid. One of the DLLs required to run this application was corrupt. ",
-		"Application requires Microsoft Windows 32-bit extensions. ",
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-	};
+	char error[256];
 
-	char code_str[6];
-	const char *error = errors[result];
-	if(!error)
+	if(result >= 32 || !LOAD_STRING(IDS_ERRORMSG + result, error))
 	{
-		wsprintf(code_str, "%u", result);
-		error = code_str;
+		char unknown_msg[64];
+		LOAD_STRING(IDS_UNKNOWNMSG, unknown_msg);
+		wsprintf(error, unknown_msg, result);
 	}
 	MessageBox(dlg, error, _title, MB_ICONERROR | MB_OK);
 
@@ -241,8 +212,9 @@ static void _error_message(HWND dlg, UINT result)
 	}
 	else
 	{
-		TCHAR text[12];
-		wsprintf(text, TEXT("%d"), result);
+		TCHAR text[64], unknown_msg[64];
+		LOAD_STRING(IDS_UNKNOWNMSG, unknown_msg);
+		wsprintf(text, unknown_msg, result);
 		MessageBox(dlg, text, _title, MB_ICONERROR | MB_OK);
 	}
 
@@ -357,7 +329,11 @@ static void _run_prog(HWND dlg)
 #	endif
 
 			if(!cmd_line_ptr || system(cmd_line_ptr) == -1)
-				MessageBox(dlg, TEXT("Error issuing a command."), _title, MB_ICONERROR | MB_OK);
+			{
+				TCHAR command_error[64];
+				LOAD_STRING(IDS_COMMAND_ERROR, command_error);
+				MessageBox(dlg, command_error, _title, MB_ICONERROR | MB_OK);
+			}
 
 			free(cmd_line_ptr);
 		}
@@ -533,8 +509,10 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 
 		{
 			HMENU sys_menu = GetSystemMenu(dlg, FALSE);
+			TCHAR about[32];
+			LOAD_STRING(IDS_ABOUT, about);
 			AppendMenu(sys_menu, MF_SEPARATOR, 0, NULL);
-			AppendMenu(sys_menu, MF_STRING, IDM_ABOUT, TEXT("&About...\tF1"));
+			AppendMenu(sys_menu, MF_STRING, IDM_ABOUT, about);
 		}
 
 		break;
@@ -668,8 +646,10 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 				self->timer_id = SetTimer(dlg, 1, 1000, NULL);
 				if(self->timer_id)
 				{
+					TCHAR stop[16];
+					LOAD_STRING(IDS_STOP, stop);
 					CheckDlgButton(dlg, IDC_START, BST_CHECKED);
-					SetDlgItemText(dlg, IDC_START, TEXT("&Stop"));
+					SetDlgItemText(dlg, IDC_START, stop);
 				}
 			}
 			else
@@ -715,6 +695,14 @@ static INT_PTR CALLBACK _main_dialog_proc(HWND dlg, UINT msg, WPARAM wparam, LPA
 	return FALSE;
 }
 
+static int _no_lang()
+{
+#ifdef _WIN32
+	MessageBoxA(NULL, "Not for Windows 3.1. Use wait16en.exe instead.", "Countdown Timer", MB_OK | MB_ICONERROR);
+#endif
+	return EXIT_FAILURE;
+}
+
 #if OMIT_CRT
 int entry_point()
 #elif defined __CYGWIN__
@@ -736,13 +724,23 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 	setlocale(LC_ALL, "");
 #endif
 
+	global_instance = instance;
+
+#if !WAIT_WIN16
+	global_heap = GetProcessHeap();
+#endif
+
 	{
 #if defined _WIN32
 		DWORD win_ver = GetVersion();
 #	ifdef UNICODE
 		if(win_ver & 0x80000000)
 		{
-			MessageBoxA(NULL, "This program requires Windows NT.", "Countdown Timer", MB_ICONERROR | MB_OK);
+			CHAR title[32], requires_nt[64];
+			if(!LoadStringA(global_instance, IDS_TITLE, title, arraysize(title)))
+				return _no_lang();
+			LoadStringA(global_instance, IDS_REQUIRES_NT, requires_nt, arraysize(requires_nt));
+			MessageBoxA(NULL, requires_nt, title, MB_ICONERROR | MB_OK);
 			return EXIT_FAILURE;
 		}
 #	endif
@@ -784,11 +782,9 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 #endif
 	}
 
-	global_instance = instance;
-
-#if !WAIT_WIN16
-	global_heap = GetProcessHeap();
-#endif
+	/* Windows NT 3.1 and Win32s don't support multilingual resources, even though the spec allows it. */
+	if(!LOAD_STRING(IDS_TITLE, _title))
+		return _no_lang();
 
 	{
 		dialog dlg_rsrc = dialog_create(MAKEINTRESOURCE(IDD_MAIN));

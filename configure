@@ -33,6 +33,9 @@ System types:
                   x86_64-pc-winnt | mingw64: 64-bit Windows
   --with(out)-unicode
                 enables Unicode support for 32/64-bit Windows
+  --lang=($(echo wait-*.rc | sed 's/wait-//g ; s/\.rc//g ; s/ /|/'))
+                build only for a specific language (required on Windows NT 3.1
+                and Win32s)
 
 EOF
 }
@@ -106,6 +109,9 @@ do
 			;;
 		--without-unicode)
 			UNICODE=no
+			;;
+		--lang=*)
+			lang="`echo "$1" | cut -d= -f2-`"
 			;;
 		--*)
 			error_opt "$1"
@@ -551,11 +557,22 @@ then
 fi
 echo_default none $EXEEXT
 
+printf 'checking for language... '
+if [ -n "$lang" ]
+then
+	wait_rc="wait-$lang.rc"
+	echo "$lang"
+else
+	echo "any"
+	wait_rc='wait.rc'
+fi
+
 echo "$0: creating Makefile"
 
 echo \# Generated from Makefile.in by $progname. > Makefile
 echo >> Makefile
 
+opts="$opts wait_rc"
 for opt in $opts
 do
 	echo $opt=`eval echo \\\$$opt` >> Makefile

@@ -44,6 +44,7 @@ these optionally takes the following parameters:
 Parameter     | Description
 --------------|---------------------------------------------------------------
 host=*{host}* | Same as the --host=*{host}* parameter in the configure script.
+lang=*{en}*   | Same as the --lang=*{en}* parameter in the configure script.
 UNICODE=1     | Enables a Unicode build.
 
 For example, `nmake /f cl.mak UNICODE=1` creates a Unicode build using Microsoft Visual Studio.

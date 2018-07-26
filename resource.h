@@ -14,3 +14,16 @@
 
 #define IDC_BUILD   1010
 #define IDC_LICENSE 1011
+
+#define IDS_TITLE           200
+#define IDS_ABOUT           201
+#define IDS_START           202
+#define IDS_STOP            203
+#define IDS_TIME_ELAPSED    204
+
+#define IDS_REQUIRES_NT     205
+#define IDS_COMMAND_ERROR   206
+
+#define IDS_UNKNOWNMSG      207
+
+#define IDS_ERRORMSG        300
