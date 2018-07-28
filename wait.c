@@ -182,8 +182,13 @@ static void _error_message(HWND dlg, UINT result)
 #	if WAIT_WIN16
 
 	char error[256];
+	static const BYTE error_map[] =
+	{
+		8, 1, 2, 3, 4, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 29, 29, 31, 32
+	};
 
-	if(result >= 32 || !LOAD_STRING(IDS_ERRORMSG + result, error))
+	assert(result < arraysize(error_map));
+	if(!LOAD_STRING(IDS_ERRORMSG + error_map[result], error))
 	{
 		char unknown_msg[64];
 		LOAD_STRING(IDS_UNKNOWNMSG, unknown_msg);
