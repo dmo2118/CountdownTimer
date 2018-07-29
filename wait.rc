@@ -2,3 +2,5 @@
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #include "wait-en.rc"
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+#include "wait-de.rc"

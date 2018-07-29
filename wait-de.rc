@@ -1,0 +1,78 @@
+#include "wait-rc.h"
+
+#pragma code_page(1252)
+
+IDD_MAIN DIALOG DISCARDABLE 200, 160, 192, 60
+STYLE DS_MODALFRAME | DS_3DLOOK | DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Countdown-Timer"
+FONT 8, DEFAULT_FONT
+BEGIN
+	LTEXT           "Der folgende &Befehl...", IDC_STATIC, 4, 4, 92, 8
+	EDITTEXT        IDC_COMMAND, 4, 16, 184, 12, ES_AUTOHSCROLL
+	LTEXT           "&Läuft in... (h:mm:ss)", IDC_STATIC, 4, 32, 184, 8
+	EDITTEXT        IDC_TIME, 4, 44, 64, 12, ES_AUTOHSCROLL
+	CONTROL         "&Anfang", IDC_START, "Button", WS_TABSTOP, 72, 44, 36, 12
+	PUSHBUTTON      "Lauf &Jetzt", IDC_RUNNOW, 112, 44, 36, 12
+	PUSHBUTTON      "&Schließen", IDC_CLOSE, 152, 44, 36, 12
+	CONTROL         "Gib einfach &Piepton", IDC_BEEP, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 112, 4, 76, 10
+END
+
+#if defined __CYGWIN__
+#	define BUILD_DE "Für Cygwin gebaut."
+#elif defined __WRC__
+#	define BUILD_DE "Für Winelib gebaut."
+#elif defined _WIN64
+#	define BUILD_DE "Für 64-Bit-Windows gebaut."
+#elif defined _WIN32
+/* Careful choice of wording here, just in case a 64-bit build accidentally doesn't define _WIN64. */
+#	define BUILD_DE "Für die Win32-API gebaut."
+#elif defined _WINDOWS
+#	define BUILD_DE "Für 16-Bit-Windows gebaut."
+#else
+#	define BUILD_DE ""
+#endif
+
+IDD_ABOUT DIALOG DISCARDABLE 0, 0, 296, 172
+STYLE DS_MODALFRAME | DS_3DLOOK | DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Info"
+FONT 8, DEFAULT_FONT
+BEGIN
+	LTEXT           "",IDC_LICENSE,8,8,280,120
+	LTEXT           BUILD_DE,IDC_BUILD,8,136,280,8
+	DEFPUSHBUTTON   "OK",IDCANCEL,124,152,48,16
+END
+
+IDR_ACCELERATOR ACCELERATORS
+BEGIN
+    VK_F1, IDHELP, VIRTKEY
+END
+
+STRINGTABLE
+BEGIN
+	IDS_TITLE           "Countdown-Timer"
+	IDS_ABOUT           "Inf&o\tF1"
+	IDS_START           "&Anfang"
+	IDS_STOP            "H&alt"
+	IDS_TIME_ELAPSED	"Zeit abgelaufen."
+	IDS_REQUIRES_NT     "Diese Anwendung benötigt Windows NT."
+	IDS_COMMAND_ERROR   "Beim Ausgeben eines Befehls ist ein Fehler aufgetreten."
+
+#if WAIT_WIN16
+	IDS_UNKNOWNMSG          "Unerwarteter Fehler: %d."
+
+	IDS_NOMEMORYMSG,        "Nicht genügend Arbeitsspeicher, um die ausgewählte Anwendung zu starten.\n\nSchließen Sie eine oder mehrere Anwendungen, und versuchen Sie es dann erneut."
+	IDS_FILENOTFOUNDMSG,    "Datei bzw. Komponente nicht gefunden.\n\nÜberprüfen Sie, ob Pfad- und Dateiname richtig und alle Bibliotheken verfügbar sind."
+	IDS_BADPATHMSG,         "Der angegebene Pfad ist ungültig."
+	IDS_MANYOPENFILESMSG,   "Zu viele Dateien werden derzeit verwendet.\n\nBeenden Sie eine oder mehrere Anwendungen oder erhöhen Sie den Wert des Wertes FILES in der CONFIG.SYS, und versuchen Sie es dann erneut."
+	IDS_NOASSOCMSG,         "Dieser Datendatei ist keine Anwendung zugeordnet."
+	IDS_ASSOCINCOMPLETE,    "Die Datei kann nicht geöffnet oder gedruckt werden.\n\nVerwenden Sie die Anwendung, mit der die Datei erstellt wurde."
+	IDS_MULTIPLEDSMSG,      "Kann nicht mehr als eine Instanz der angegebenen Anwendung starten."
+	IDS_OS2APPMSG           "Die angegebene Anwendung ist kein Windows- or MS-DOS-Program."
+	IDS_NEWWINDOWSMSG       "Diese Anwendung benötigt eine neuere Version von Microsoft Windows."
+	IDS_PMODEONLYMSG        "Diese Anwendung benötigt Windows."
+	IDS_DDEFAIL             "Ein Fehler ist während des Senden des Befehls zur Anwendung aufgetreten."
+	IDS_COMPRESSEDEXE       "Dies Anwendung oder einer ihrer Komponenten ist komprimiert.\n\nBenutzen sie das MS-DOS expand tool um die Datei vom Setup-Datenträger zu kopieren."
+	IDS_INVALIDDLL          "Eine Bibliotheksdatei, die zum Betrieb der gewählten Anwendung benötigt wird ist defekt. Bitte installieren Sie sie Anwendung erneut."
+	IDS_SHAREERROR          "Diese Datei wird von einer anderen Anwednung verwendet."
+#endif
+END
