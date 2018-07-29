@@ -472,7 +472,7 @@ then
 	tmp=`mktemp -d /tmp/wait-XXXXXXXXXX` || exit
 
 	# winegcc doesn't seem to work quite right compiling via "winegcc -xc -".
-	cp /dev/stdin $tmp/in.c <<EOF
+	cat > $tmp/in.c <<EOF
 
 #include <iconv.h>
 

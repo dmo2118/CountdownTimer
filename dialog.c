@@ -1,11 +1,12 @@
 #include "dialog.h"
 
+#if USE_DIALOG
+
 #include "wait.h"
 
 #include <assert.h>
 #include <stddef.h>
-
-#if USE_DIALOG
+#include <wchar.h>
 
 typedef struct
 {
