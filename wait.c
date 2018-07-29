@@ -8,7 +8,6 @@ TODO:
 - OpenWatcom on Linux
 - MinGW on macOS
 - Async system()
-- ShellExecuteEx: it's just better.
 - Windows 3.0, 2.0, 1.0.
 - HXDOS (again)
 - Use a SysLink in the about dialog, when possible. Use LinkWindow_RegisterClass on 2000; manifest takes care of things on XP.
@@ -82,6 +81,10 @@ HANDLE global_heap;
 #endif
 
 static TCHAR _title[32];
+
+#if !WAIT_WIN16
+BOOL (STDAPICALLTYPE *_ShellExecuteEx)(SHELLEXECUTEINFO *);
+#endif
 
 #define LOAD_STRING(id, buffer) (LoadString(global_instance, id, (buffer), arraysize(buffer)))
 
@@ -226,6 +229,31 @@ static void _error_message(HWND dlg, UINT result)
 #	endif
 }
 
+static void _run_prog_shell_execute(HWND dlg, TCHAR *file, TCHAR *param)
+{
+	UINT_PTR result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
+	if(result <= 32)
+	{
+#if !WAIT_WIN16
+		static const DWORD errors26[] =
+		{
+			ERROR_SHARING_VIOLATION,
+			ERROR_NO_ASSOCIATION,
+			ERROR_DDE_FAIL,
+			ERROR_DDE_FAIL,
+			ERROR_DDE_FAIL,
+			ERROR_NO_ASSOCIATION,
+			ERROR_MOD_NOT_FOUND
+		};
+
+		if(result >= 26)
+			result = errors26[result - 26];
+#endif
+
+		_error_message(dlg, result);
+	}
+}
+
 static void _run_prog(HWND dlg)
 {
 #if !WAIT_WIN16
@@ -348,7 +376,6 @@ static void _run_prog(HWND dlg)
 		{
 			TCHAR *param;
 			TCHAR *file = cmd_line;
-			UINT_PTR result;
 
 			while(isspace(*file))
 				file++;
@@ -383,29 +410,24 @@ static void _run_prog(HWND dlg)
 			{
 				_just_beep(dlg);
 			}
+#if !WAIT_WIN16
+			else if(_ShellExecuteEx)
+			{
+				SHELLEXECUTEINFO exec_info = {sizeof(exec_info)};
+				exec_info.hwnd = dlg;
+				exec_info.lpFile = file;
+				exec_info.lpParameters = param;
+				exec_info.nShow = SW_SHOWNORMAL;
+				if(!_ShellExecuteEx(&exec_info))
+				{
+					if(GetLastError() == ERROR_CALL_NOT_IMPLEMENTED)
+						_run_prog_shell_execute(dlg, file, param);
+				}
+			}
+#endif
 			else
 			{
-				result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
-				if(result <= 32)
-				{
-#	if !WAIT_WIN16
-					static const DWORD errors26[] =
-					{
-						ERROR_SHARING_VIOLATION,
-						ERROR_NO_ASSOCIATION,
-						ERROR_DDE_FAIL,
-						ERROR_DDE_FAIL,
-						ERROR_DDE_FAIL,
-						ERROR_NO_ASSOCIATION,
-						ERROR_MOD_NOT_FOUND
-					};
-
-					if(result >= 26)
-						result = errors26[result - 26];
-#	endif
-
-					_error_message(dlg, result);
-				}
+				_run_prog_shell_execute(dlg, file, param);
 			}
 		}
 #endif
@@ -790,6 +812,18 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 	/* Windows NT 3.1 and Win32s don't support multilingual resources, even though the spec allows it. */
 	if(!LOAD_STRING(IDS_TITLE, _title))
 		return _no_lang();
+
+#if !WAIT_WIN16
+	_ShellExecuteEx = (BOOL (STDAPICALLTYPE *)(SHELLEXECUTEINFO *))GetProcAddress(
+		GetModuleHandle(TEXT("shell32")),
+		"ShellExecuteEx"
+#ifdef UNICODE
+		"W"
+#else
+		"A"
+#endif
+		);
+#endif
 
 	{
 		dialog dlg_rsrc = dialog_create(MAKEINTRESOURCE(IDD_MAIN));
