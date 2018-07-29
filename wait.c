@@ -250,7 +250,7 @@ static void _run_prog_shell_execute(HWND dlg, TCHAR *file, TCHAR *param)
 			result = errors26[result - 26];
 #endif
 
-		_error_message(dlg, result);
+		_error_message(dlg, (UINT)result);
 	}
 }
 
@@ -744,7 +744,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 	HINSTANCE instance = GetModuleHandle(NULL);
 #endif
 
-	int exit_code;
+	INT exit_code;
 
 #if defined __CYGWIN__ || defined __WINE__
 	/* iconv() needs this. */
@@ -872,7 +872,7 @@ int PASCAL _tWinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_lin
 				}
 			}
 
-			exit_code = msg.wParam;
+			exit_code = (INT)msg.wParam;
 
 			DestroyAcceleratorTable(accel);
 		}
