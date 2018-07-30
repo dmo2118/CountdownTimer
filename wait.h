@@ -77,6 +77,13 @@ typedef unsigned long SIZE_T;
 
 #endif
 
+#if defined __MINGW32__ || defined __CYGWIN__ || defined __WINE__
+	/* Missing from some older w32api headers. */
+#	ifndef UnlockResource
+#		define UnlockResource(res_data) ((void)(res_data), 0)
+#	endif
+#endif
+
 #if defined _WINDOWS || defined _WIN32
 extern BYTE global_win_ver; /* May be 4 or greater even as a 16-bit app. */
 #	define HAS_WINVER_4() (global_win_ver >= 4)

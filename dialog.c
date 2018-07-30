@@ -6,7 +6,6 @@
 
 #include <assert.h>
 #include <stddef.h>
-#include <wchar.h>
 
 typedef struct
 {
@@ -33,7 +32,7 @@ struct dlg_template_suffix
 
 static size_t _size_sz(const WCHAR *s)
 {
-	return wcslen(s) + 1;
+	return lstrlenW(s) + 1;
 }
 
 static size_t _size_sz_or_ord(const WORD *s)

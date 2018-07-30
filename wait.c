@@ -65,13 +65,6 @@ TODO:
 #	include <windowsx.h>
 #endif
 
-#if defined __MINGW32__ || defined __CYGWIN__ || defined __WINE__
-	/* Missing from some older w32api headers. */
-#	ifndef UnlockResource
-#		define UnlockResource(res_data) ((void)(res_data), 0)
-#	endif
-#endif
-
 BYTE global_win_ver;
 
 HINSTANCE global_instance;
@@ -229,6 +222,8 @@ static void _error_message(HWND dlg, UINT result)
 #	endif
 }
 
+#if !defined __CYGWIN__ && !defined __WINE__
+
 static void _run_prog_shell_execute(HWND dlg, TCHAR *file, TCHAR *param)
 {
 	UINT_PTR result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
@@ -253,6 +248,8 @@ static void _run_prog_shell_execute(HWND dlg, TCHAR *file, TCHAR *param)
 		_error_message(dlg, (UINT)result);
 	}
 }
+
+#endif
 
 static void _run_prog(HWND dlg)
 {
@@ -328,7 +325,7 @@ static void _run_prog(HWND dlg)
 
 					while(in_left)
 					{
-						assert(!out_left && !out || out);
+						assert((!out_left && !out) || out);
 						if(!out)
 						{
 							_iconv_realloc(&cmd_line_ptr, &out, &out_left);
