@@ -41,11 +41,11 @@ produced by other toolchains.
 Several makefiles are included for specific build toolchains. Their names are in the form of `{compiler name}.mak`. Each of
 these optionally takes the following parameters:
 
-Parameter      | Description
----------------|----------------------------------------------------------------
-host=*{host}*  | Same as the --host=*{host}* parameter in the configure script.
-lang=*{de|en}* | Same as the --lang=*{de|en}* parameter in the configure script.
-UNICODE=1      | Enables a Unicode build.
+Parameter       | Description
+----------------|-----------------------------------------------------------------
+host=*{host}*   | Same as the --host=*{host}* parameter in the configure script.
+lang=*{de\|en}* | Same as the --lang=*{de\|en}* parameter in the configure script.
+UNICODE=1       | Enables a Unicode build.
 
 For example, `nmake /f cl.mak UNICODE=1` creates a Unicode build using Microsoft Visual Studio.
 
