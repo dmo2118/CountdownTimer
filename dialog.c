@@ -135,7 +135,7 @@ dialog dialog_create(LPTSTR template_name)
 	{
 		if(!dialog_using_ex())
 		{
-			CopyMemory(dst_rsrc, src_rsrc, dst_size);
+			memcpy(dst_rsrc, src_rsrc, dst_size);
 		}
 		else
 		{

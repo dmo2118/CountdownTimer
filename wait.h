@@ -57,7 +57,8 @@ typedef unsigned long SIZE_T;
 
 #	define TEXT(s) s
 
-#	define ERROR_NOT_ENOUGH_MEMORY 8
+#	define ERROR_FILE_NOT_FOUND     2
+#	define ERROR_NOT_ENOUGH_MEMORY  8
 
 #	define BST_UNCHECKED   0
 #	define BST_CHECKED     1

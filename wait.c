@@ -224,7 +224,7 @@ static void _error_message(HWND dlg, UINT result)
 
 #if !defined __CYGWIN__ && !defined __WINE__
 
-static void _run_prog_shell_execute(HWND dlg, TCHAR *file, TCHAR *param)
+static void _run_prog_shell_execute(HWND dlg, const TCHAR *file, const TCHAR *param)
 {
 	UINT_PTR result = (UINT_PTR)ShellExecute(dlg, NULL, file, param, NULL, SW_SHOWNORMAL);
 	if(result <= 32)
@@ -249,6 +249,93 @@ static void _run_prog_shell_execute(HWND dlg, TCHAR *file, TCHAR *param)
 	}
 }
 
+static BOOL _check_file(const TCHAR *file)
+{
+#if WAIT_WIN16
+	OFSTRUCT of;
+	int hnd;
+
+	of.cBytes = sizeof(of);
+	hnd = OpenFile(file, &of, OF_EXIST);
+	if(hnd != HFILE_ERROR)
+		return TRUE;
+
+	if(of.nErrCode != ERROR_FILE_NOT_FOUND)
+		return TRUE;
+
+	return FALSE;
+#else
+	HANDLE hnd = CreateFile(file, 0, 0, NULL, OPEN_EXISTING, 0, NULL);
+	if(hnd != INVALID_HANDLE_VALUE)
+	{
+		CloseHandle(hnd);
+		return TRUE;
+	}
+	else
+	{
+		DWORD last_error = GetLastError();
+		if(last_error != ERROR_FILE_NOT_FOUND)
+			return TRUE;
+	}
+
+	return FALSE;
+#endif
+}
+
+static TCHAR *_find_exe_with_spaces(TCHAR *file)
+{
+	/*
+	ShellExecute needs a separate file and parameters. In the absense of quotes, make an educated guess. This works a bit like
+	CreateProcess does when lpApplicationName is NULL.
+	*/
+
+	TCHAR *param = file;
+	BOOL has_slash = FALSE;
+
+	while(*param)
+	{
+		has_slash |= *param == '/' || *param == '\\';
+
+		if(isspace(*param))
+		{
+			TCHAR old_chars[5];
+			BOOL got_file;
+
+			if(!has_slash)
+			{
+				/* pbrush File.bmp */
+				*param = 0;
+				++param;
+				break;
+			}
+
+			memcpy(old_chars, param, sizeof(old_chars));
+			*param = 0;
+
+			if(_check_file(file))
+			{
+				++param;
+				break;
+			}
+
+			memcpy(param, TEXT(".exe"), sizeof(old_chars));
+			got_file = _check_file(file);
+			memcpy(param, old_chars, sizeof(old_chars));
+
+			if(got_file)
+			{
+				*param = 0;
+				++param;
+				break;
+			}
+		}
+
+		++param;
+	}
+
+	return param;
+}
+
 #endif
 
 static void _run_prog(HWND dlg)
@@ -261,7 +348,7 @@ static void _run_prog(HWND dlg)
 	{
 		HWND command = GetDlgItem(dlg, IDC_COMMAND);
 		UINT cmd_line_size = GetWindowTextLength(command) + 1;
-		TCHAR *cmd_line = (TCHAR *)LOCAL_ALLOC_PTR(cmd_line_size * sizeof(TCHAR));
+		TCHAR *cmd_line = (TCHAR *)LOCAL_ALLOC_PTR(cmd_line_size * sizeof(TCHAR) + 3); /* +3 for _find_exe_with_spaces. */
 
 		if(!cmd_line)
 		{
@@ -373,35 +460,42 @@ static void _run_prog(HWND dlg)
 		{
 			TCHAR *param;
 			TCHAR *file = cmd_line;
-
 			while(isspace(*file))
-				file++;
+				++file;
 
-			if(*file == '"')
+			if(*file != '"')
 			{
-				file++;
-				/* GCC translates __builtin_strchr to simply strchr. */
-				param = _tcschr(file, '"');
-
-				if(param)
-				{
-					*param = 0;
-					param++;
-				}
+				param = _find_exe_with_spaces(file);
 			}
 			else
 			{
+				++file;
 				param = file;
 
-				while(*param && !isspace(*param))
-					param++;
-
-				if(*param)
+				for(;;)
 				{
-					*param = 0;
-					param++;
+					if(!param[0])
+					{
+						file = cmd_line;
+						param = _find_exe_with_spaces(file);
+						break;
+					}
+
+					if(param[0] == '"' && (!param[1] || isspace(param[1])))
+					{
+						param[0] = 0;
+						++param;
+						break;
+					}
+
+					++param;
 				}
 			}
+
+			while(isspace(*param))
+				++param;
+			if(!*param)
+				param = NULL;
 
 			if(!*file)
 			{
